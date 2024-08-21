@@ -1,0 +1,4 @@
+<resources>
+    <string name="regular">sans-serif</string>
+    <string name="medium">sans-serif-medium</string>
+</resources>

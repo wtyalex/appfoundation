@@ -1,0 +1,11 @@
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/content"
+    android:layout_width="match_parent"
+    android:layout_height="41.5dp"
+    android:layout_gravity="center"
+    android:gravity="center"
+    android:textColor="#333333"
+    android:textSize="21sp"
+    tools:text="上午"
+    tools:ignore="MissingDefaultResource" />

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="transparent">#00000000</color>
+    <color name="fix_black_1D2129">#1D2129</color>
+    <color name="fix_gray_CC">#CCCCCC</color>
+
+
+    <color name="ui_action_bar_line">@color/transparent</color>
+    <color name="ui_action_bar_title_textcolor">@color/fix_black_1D2129</color>
+    <color name="ui_substrate">#F4F8FB</color>
+</resources>

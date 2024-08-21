@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="sp_12">12sp</dimen>
+    <dimen name="sp_14">14sp</dimen>
+    <dimen name="sp_16">16sp</dimen>
+    <dimen name="sp_18">18sp</dimen>
+    <dimen name="sp_20">20sp</dimen>
+    <dimen name="sp_23">23sp</dimen>
+    <dimen name="dp_6">6dp</dimen>
+
+    <dimen name="common_margin">15dp</dimen>
+    <dimen name="base_alert_dialog_horizontal_margin">36dp</dimen>
+    <!--action_bar-->
+    <dimen name="ui_action_bar_title_text_size">20sp</dimen>
+    <dimen name="ui_action_bar_height">50dp</dimen>
+    <dimen name="ui_action_bar_icon_size">50dp</dimen>
+    <dimen name="back_icon_vertical_padding">13dp</dimen>
+    <dimen name="action_bar_horizontal_padding">@dimen/common_margin</dimen>
+</resources>
