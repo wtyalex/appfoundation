@@ -12,8 +12,7 @@ import androidx.lifecycle.ViewModelStoreOwner;
 import androidx.viewbinding.ViewBinding;
 
 public abstract class VM2BaseFragment<VM extends BaseViewModel<? extends IRepository>,
-        VM2 extends BaseViewModel<? extends IRepository>, VB extends ViewBinding> extends
-        VMBaseFragment<VM, VB> {
+    VM2 extends BaseViewModel<? extends IRepository>, VB extends ViewBinding> extends VMBaseFragment<VM, VB> {
     private VM2 mViewModel2;
 
     @Override

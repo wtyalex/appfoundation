@@ -2,7 +2,11 @@ package com.wty.foundation.core.utils;
 
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.text.ParseException;
 
+import org.json.JSONException;
+
+import com.google.gson.JsonParseException;
 import com.wty.foundation.core.exception.AppException;
 import com.wty.foundation.core.exception.ServerException;
 
@@ -46,10 +50,13 @@ public class ThrowableMsgUtils {
             return throwable.getMessage();
         } else if (throwable instanceof AppException) {
             return throwable.getMessage();
+        } else if (throwable instanceof JsonParseException || throwable instanceof JSONException
+            || throwable instanceof ParseException) {
+            return "解析错误";
         } else {
-            Log.e(TAG, Log.getStackTraceString(throwable));
+            Log.e(TAG, "未处理的异常: " + Log.getStackTraceString(throwable));
             return "未知错误";
         }
-
     }
+
 }

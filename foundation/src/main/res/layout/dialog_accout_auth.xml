@@ -9,7 +9,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_margin="15dp"
-        android:background="@drawable/ac_shape_white_6_radius"
+        android:background="@drawable/ui_shape_white_6_radius"
         android:orientation="vertical">
 
         <TextView
