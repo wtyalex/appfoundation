@@ -14,9 +14,8 @@ import androidx.annotation.StringRes;
 public class ResUtils {
     private static final Resources RESOURCES = AppContext.getInstance().getContext().getResources();
 
-    private ResUtils() {
-        // 防止单例实例化
-    }
+    // 私有构造函数防止外部实例化
+    private ResUtils() {}
 
     /**
      * 获取指定资源ID的字符串资源。

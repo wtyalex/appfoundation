@@ -20,12 +20,13 @@ import androidx.annotation.NonNull;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
-public final class ScreenUtils {
+public class ScreenUtils {
 
+    // 私有构造函数防止外部实例化
     private ScreenUtils() {}
 
     /**
-     * 获取屏幕尺寸（英寸），比实际尺寸稍小。
+     * 获取屏幕尺寸（英寸），比实际尺寸稍小
      *
      * @return 屏幕尺寸
      */
@@ -36,7 +37,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 获取屏幕尺寸（英寸），比实际尺寸稍小。
+     * 获取屏幕尺寸（英寸），比实际尺寸稍小
      *
      * @param dm 显示度量
      * @return 屏幕尺寸
@@ -49,7 +50,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 获取屏幕大小（去除导航栏后）。
+     * 获取屏幕大小（去除导航栏后）
      *
      * @return 宽和高数组
      */
@@ -62,7 +63,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 获取状态栏高度。
+     * 获取状态栏高度
      *
      * @return 状态栏高度
      */
@@ -76,7 +77,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 获取导航栏高度。
+     * 获取导航栏高度
      *
      * @return 导航栏高度
      */
@@ -90,7 +91,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 设置状态栏属性。
+     * 设置状态栏属性
      *
      * @param activity Activity
      * @param isVisibility 是否可见
@@ -123,7 +124,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 隐藏状态栏。
+     * 隐藏状态栏
      *
      * @param activity Activity
      */
@@ -138,7 +139,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 显示状态栏。
+     * 显示状态栏
      *
      * @param activity Activity
      */
@@ -153,17 +154,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 获取屏幕密度。
-     *
-     * @return 屏幕密度
-     */
-    public static float getScreenDensity() {
-        DisplayMetrics dm = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return dm.density;
-    }
-
-    /**
-     * 获取屏幕方向。
+     * 获取屏幕方向
      *
      * @return 屏幕方向
      */
@@ -177,7 +168,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 获取屏幕的物理尺寸（毫米）。
+     * 获取屏幕的物理尺寸（毫米）
      *
      * @return 物理尺寸
      */
@@ -191,17 +182,7 @@ public final class ScreenUtils {
     }
 
     /**
-     * 获取屏幕DPI。
-     *
-     * @return DPI
-     */
-    public static int getScreenDPI() {
-        DisplayMetrics dm = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return dm.densityDpi;
-    }
-
-    /**
-     * 判断屏幕是否为横屏。
+     * 判断屏幕是否为横屏
      *
      * @return 是否横屏
      */

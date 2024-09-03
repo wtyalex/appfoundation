@@ -8,13 +8,18 @@ import java.text.NumberFormat;
 import java.util.Currency;
 import java.util.Locale;
 
+import android.util.Log;
+
 public class DecimalUtils {
 
     private static final String TAG = "DecimalUtils";
     private static final int DEFAULT_DECIMAL_PLACES = 2;
 
+    // 私有构造函数，防止外部实例化
+    private DecimalUtils() {}
+
     /**
-     * 格式化一个数字字符串到指定小数位数。
+     * 格式化一个数字字符串到指定小数位数
      *
      * @param num 要格式化的数字字符串
      * @param decimals 小数位数
@@ -29,12 +34,13 @@ public class DecimalUtils {
             BigDecimal bd = new BigDecimal(num).setScale(decimals, RoundingMode.HALF_UP);
             return df.format(bd);
         } catch (NumberFormatException e) {
-            return num; // 返回原始输入
+            Log.e(TAG, "formatDecimal", e);
+            return num;
         }
     }
 
     /**
-     * 过滤输入字符串，只保留指定数量的小数位数。
+     * 过滤输入字符串，只保留指定数量的小数位数
      *
      * @param input 输入字符串
      * @param decimals 允许的小数位数
@@ -72,7 +78,7 @@ public class DecimalUtils {
     }
 
     /**
-     * 重复指定字符。
+     * 重复指定字符
      *
      * @param ch 要重复的字符
      * @param times 重复次数
@@ -87,46 +93,18 @@ public class DecimalUtils {
     }
 
     /**
-     * 格式化数字到小数点后一位。
-     *
-     * @param num 要格式化的数字字符串
-     * @return 格式化后的字符串
-     */
-    public static String decimalPoint(String num) {
-        if (StringUtils.isNullEmpty(num)) {
-            return "";
-        }
-        try {
-            DecimalFormat df = new DecimalFormat("#,##0.0");
-            return df.format(new BigDecimal(num));
-        } catch (NumberFormatException e) {
-            return num; // 返回原始输入
-        }
-    }
-
-    /**
-     * 格式化数字为货币形式。
+     * 格式化数字为货币形式
      *
      * @param num 数字字符串
      * @param currencyCode 货币代码
      * @return 货币格式化的字符串
      */
     public static String formatCurrency(String num, String currencyCode) {
-        if (StringUtils.isNullEmpty(num)) {
-            return "";
-        }
-        try {
-            NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance();
-            ((DecimalFormat)currencyFormatter).setDecimalFormatSymbols(
-                DecimalFormatSymbols.getInstance(currencyCode != null ? new Locale("en", currencyCode) : Locale.US));
-            return currencyFormatter.format(new BigDecimal(num));
-        } catch (NumberFormatException e) {
-            return num; // 返回原始输入
-        }
+        return formatCurrency(num, currencyCode, true);
     }
 
     /**
-     * 格式化数字为货币形式，并指定符号位置。
+     * 格式化数字为货币形式，并指定符号位置
      *
      * @param num 数字字符串
      * @param currencyCode 货币代码
@@ -147,12 +125,13 @@ public class DecimalUtils {
             df.setPositiveSuffix(symbolBefore ? "" : symbols.getCurrencySymbol());
             return df.format(new BigDecimal(num));
         } catch (NumberFormatException e) {
+            Log.e(TAG, "formatCurrency", e);
             return num;
         }
     }
 
     /**
-     * 安全地解析一个字符串为 BigDecimal。
+     * 安全地解析一个字符串为 BigDecimal
      *
      * @param num 要解析的数字字符串
      * @return 解析后的 BigDecimal 对象
@@ -164,12 +143,13 @@ public class DecimalUtils {
         try {
             return new BigDecimal(num);
         } catch (NumberFormatException e) {
+            Log.e(TAG, "safeParseBigDecimal ", e);
             return BigDecimal.ZERO;
         }
     }
 
     /**
-     * 格式化数字为科学计数法。
+     * 格式化数字为科学计数法
      *
      * @param num 数字字符串
      * @param significantDigits 显著位数
@@ -184,12 +164,13 @@ public class DecimalUtils {
             BigDecimal bd = new BigDecimal(num);
             return df.format(bd);
         } catch (NumberFormatException e) {
+            Log.e(TAG, "formatScientific", e);
             return num;
         }
     }
 
     /**
-     * 格式化数字为百分比形式。
+     * 格式化数字为百分比形式
      *
      * @param num 数字字符串
      * @param decimals 小数位数
@@ -204,17 +185,20 @@ public class DecimalUtils {
             BigDecimal bd = new BigDecimal(num).setScale(decimals, RoundingMode.HALF_UP);
             return df.format(bd);
         } catch (NumberFormatException e) {
+            Log.e(TAG, "formatPercentage", e);
             return num;
         }
     }
 
     /**
-     * 安全地除以一个数，并返回结果。
+     * 安全地除以一个数，并返回结果（高精度的数值计算，如金融应用）
+     *
+     * 此方法执行高精度除法运算，并在除数为零时返回零。 结果的小数位数可以通过参数 `scale` 指定，并采用四舍五入的方式进行舍入。
      *
      * @param dividend 被除数
      * @param divisor 除数
      * @param scale 结果的小数位数
-     * @return 计算结果
+     * @return 计算结果，如果除数为零则返回零
      */
     public static BigDecimal safeDivide(BigDecimal dividend, BigDecimal divisor, int scale) {
         if (divisor.compareTo(BigDecimal.ZERO) == 0) {
@@ -224,7 +208,7 @@ public class DecimalUtils {
     }
 
     /**
-     * 四舍五入一个 BigDecimal 到指定小数位数。
+     * 四舍五入一个 BigDecimal 到指定小数位数
      *
      * @param value 要四舍五入的值
      * @param places 小数位数
@@ -238,7 +222,7 @@ public class DecimalUtils {
     }
 
     /**
-     * 向下取整一个 BigDecimal 到指定小数位数。
+     * 向下取整一个 BigDecimal 到指定小数位数
      *
      * @param value 要向下取整的值
      * @param places 小数位数
@@ -252,7 +236,7 @@ public class DecimalUtils {
     }
 
     /**
-     * 向上取整一个 BigDecimal 到指定小数位数。
+     * 向上取整一个 BigDecimal 到指定小数位数
      *
      * @param value 要向上取整的值
      * @param places 小数位数

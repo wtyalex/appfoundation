@@ -1,56 +1,52 @@
 package com.wty.foundation.common.utils;
 
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class StringUtils {
+public class StringUtils {
 
-    // 私有构造函数，防止实例化
+    /**
+     * 私有构造函数防止外部实例化
+     */
     private StringUtils() {}
 
     /**
-     * 检查给定的字符串是否为null。
+     * 检查给定字符串是否为null
      *
      * @param str 要检查的字符串
-     * @return 如果字符串为null，则返回true；否则返回false
+     * @return 如果字符串为null返回true，否则返回false
      */
     public static boolean isNull(String str) {
         return str == null;
     }
 
     /**
-     * 检查给定的字符串是否为null或空字符串。
+     * 检查给定字符串是否为null或空
      *
      * @param str 要检查的字符串
-     * @return 如果字符串为null或长度为0，则返回true；否则返回false
+     * @return 如果字符串为null或空返回true，否则返回false
      */
     public static boolean isNullEmpty(String str) {
         return isNull(str) || str.isEmpty();
     }
 
     /**
-     * 检查给定的CharSequence对象是否为null或长度为0。
+     * 检查给定的CharSequence是否为null或空
      *
-     * @param str 要检查的CharSequence对象
-     * @return 如果对象为null或长度为0，则返回true；否则返回false
+     * @param str 要检查的CharSequence
+     * @return 如果CharSequence为null或空返回true，否则返回false
      */
     public static boolean isNullEmpty(CharSequence str) {
         return str == null || str.length() == 0;
     }
 
     /**
-     * 比较两个字符串是否相等。
+     * 检查两个字符串是否相等
      *
      * @param str1 第一个字符串
      * @param str2 第二个字符串
-     * @return 如果两个字符串相等或都为null，则返回true；否则返回false
+     * @return 如果两个字符串相等返回true，否则返回false
      */
     public static boolean isEqual(String str1, String str2) {
         if (str1 == null) {
@@ -61,14 +57,14 @@ public final class StringUtils {
     }
 
     /**
-     * 获取从第一次出现指定子字符串之后的剩余部分。
+     * 返回指定索引首次出现后的子字符串。
      *
-     * @param str 原始字符串
-     * @param indexOf 子字符串
-     * @return 如果找到子字符串，则返回子字符串之后的部分；否则返回原始字符串
+     * @param str 要处理的字符串。
+     * @param indexOf 要查找的索引。
+     * @return 索引之后的子字符串。
      */
-    public static String substringAfterFirst(String str, String indexOf) {
-        if (isNullEmpty(str)) {
+    public static String substringIndexOf(String str, String indexOf) {
+        if (isNullEmpty(str) || isNullEmpty(indexOf)) {
             return str;
         }
         if (str.contains(indexOf)) {
@@ -78,14 +74,14 @@ public final class StringUtils {
     }
 
     /**
-     * 获取从最后一次出现指定子字符串之后的剩余部分。
+     * 返回指定索引最后一次出现后的子字符串。
      *
-     * @param str 原始字符串
-     * @param indexOf 子字符串
-     * @return 如果找到子字符串，则返回子字符串之后的部分；否则返回原始字符串
+     * @param str 要处理的字符串。
+     * @param indexOf 要查找的索引。
+     * @return 索引之后的子字符串。
      */
-    public static String substringAfterLast(String str, String indexOf) {
-        if (isNullEmpty(str)) {
+    public static String substringLastIndexOf(String str, String indexOf) {
+        if (isNullEmpty(str) || isNullEmpty(indexOf)) {
             return str;
         }
         if (str.contains(indexOf)) {
@@ -95,46 +91,15 @@ public final class StringUtils {
     }
 
     /**
-     * 获取两个字符串的公共前缀。
+     * 检查给定字符串是否为null或空白（全是空格）
      *
-     * @param str1 第一个字符串
-     * @param str2 第二个字符串
-     * @return 公共前缀字符串
-     */
-    public static String commonPrefix(String str1, String str2) {
-        int minLength = Math.min(str1.length(), str2.length());
-        for (int i = 0; i < minLength; i++) {
-            if (str1.charAt(i) != str2.charAt(i)) {
-                return str1.substring(0, i);
-            }
-        }
-        return str1.substring(0, minLength);
-    }
-
-    /**
-     * 获取两个字符串的公共后缀。
-     *
-     * @param str1 第一个字符串
-     * @param str2 第二个字符串
-     * @return 公共后缀字符串
-     */
-    public static String commonSuffix(String str1, String str2) {
-        int minLength = Math.min(str1.length(), str2.length());
-        for (int i = 0; i < minLength; i++) {
-            if (str1.charAt(str1.length() - 1 - i) != str2.charAt(str2.length() - 1 - i)) {
-                return str1.substring(str1.length() - i);
-            }
-        }
-        return str1.substring(str1.length() - minLength);
-    }
-
-    /**
-     * 判断字符串是否只包含空白字符（如空格、制表符等）。
-     *
-     * @param str 要判断的字符串
-     * @return 如果字符串只包含空白字符，则返回true；否则返回false
+     * @param str 要检查的字符串
+     * @return 如果字符串为null或空白返回true，否则返回false
      */
     public static boolean isBlank(String str) {
+        if (str == null) {
+            return true;
+        }
         for (int i = 0; i < str.length(); i++) {
             if (!Character.isWhitespace(str.charAt(i))) {
                 return false;
@@ -144,378 +109,530 @@ public final class StringUtils {
     }
 
     /**
-     * 将字符串转换为大写。
+     * 检查给定字符串是否不是空白
      *
-     * @param str 要转换的字符串
-     * @return 大写的字符串
+     * @param str 要检查的字符串
+     * @return 如果字符串不是空白返回true，否则返回false
      */
-    public static String toUpperCase(String str) {
-        if (isNullEmpty(str)) {
-            return str;
-        }
-        return str.toUpperCase();
+    public static boolean isNotBlank(String str) {
+        return !isBlank(str);
     }
 
     /**
-     * 将字符串转换为小写。
+     * 去除字符串前后空白并返回，如果为null则返回空字符串
      *
-     * @param str 要转换的字符串
-     * @return 小写的字符串
+     * @param str 要去除空白的字符串
+     * @return 去除空白后的字符串或空字符串
      */
-    public static String toLowerCase(String str) {
-        if (isNullEmpty(str)) {
-            return str;
-        }
-        return str.toLowerCase();
+    public static String trimToEmpty(String str) {
+        return str == null ? "" : str.trim();
     }
 
     /**
-     * 去除字符串两端的空白字符。
+     * 去除字符串前后空白并返回，如果为空字符串则返回null
      *
-     * @param str 要处理的字符串
-     * @return 去除空白字符后的字符串
+     * @param str 要去除空白的字符串
+     * @return 去除空白后的字符串或null
      */
-    public static String trim(String str) {
-        if (isNullEmpty(str)) {
-            return str;
-        }
-        return str.trim();
+    public static String trimToNull(String str) {
+        final String trimmed = str == null ? null : str.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**
-     * 根据指定的分隔符将字符串分割成数组。
+     * 如果给定字符串为null或空，则返回默认字符串
      *
-     * @param str 原始字符串
-     * @param delimiter 分隔符
-     * @return 分割后的字符串数组
+     * @param str 要检查的字符串
+     * @param defaultStr 默认字符串
+     * @return 给定的字符串或默认字符串
      */
-    public static String[] split(String str, String delimiter) {
-        if (isNullEmpty(str)) {
-            return new String[] {str};
-        }
-        return str.split(delimiter);
+    public static String defaultString(String str, String defaultStr) {
+        return isNullEmpty(str) ? defaultStr : str;
     }
 
     /**
-     * 将多个字符串或对象连接成一个字符串。
+     * 在字符串左侧填充特定字符直到达到指定长度
      *
-     * @param separator 连接符
-     * @param objects 对象数组
-     * @return 连接后的字符串
-     */
-    public static String join(String separator, Object... objects) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < objects.length; i++) {
-            if (i > 0) {
-                sb.append(separator);
-            }
-            sb.append(objects[i].toString());
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 对字符串进行左填充或右填充以达到指定长度。
-     *
-     * @param str 原始字符串
-     * @param length 目标长度
-     * @param padStr 填充字符串
-     * @param leftFill 是否左填充
+     * @param str 要填充的字符串
+     * @param size 期望的长度
+     * @param padChar 填充字符
      * @return 填充后的字符串
      */
-    public static String pad(String str, int length, String padStr, boolean leftFill) {
-        if (isNullEmpty(str)) {
+    public static String leftPad(String str, int size, char padChar) {
+        if (str == null) {
             str = "";
         }
-        StringBuilder sb = new StringBuilder(str);
-        while (sb.length() < length) {
-            if (leftFill) {
-                sb.insert(0, padStr);
-            } else {
-                sb.append(padStr);
-            }
+        int pads = size - str.length();
+        if (pads <= 0) {
+            return str; // 返回原字符串
         }
-        return sb.toString().substring(0, length);
+        if (pads > 8192) {
+            throw new IllegalArgumentException("Padding length (" + pads + ") is too large");
+        }
+        return repeat(padChar, pads).concat(str);
     }
 
     /**
-     * 将字符串反转。
+     * 重复一个字符多次
+     *
+     * @param ch 要重复的字符
+     * @param repeat 重复次数
+     * @return 重复后的字符串
+     */
+    public static String repeat(char ch, int repeat) {
+        final char[] buf = new char[repeat];
+        for (int i = repeat - 1; i >= 0; i--) {
+            buf[i] = ch;
+        }
+        return new String(buf);
+    }
+
+    /**
+     * 获取字符串中指定分隔符前的部分
+     *
+     * @param str 要处理的字符串
+     * @param separator 分隔符
+     * @return 分隔符前的部分
+     */
+    public static String getSubstringBefore(String str, String separator) {
+        if (str == null || separator == null) {
+            return str;
+        }
+        if (separator.isEmpty()) {
+            return "";
+        }
+        int pos = str.indexOf(separator);
+        if (pos == -1) {
+            return str;
+        }
+        return str.substring(0, pos);
+    }
+
+    /**
+     * 获取字符串中指定分隔符后的一部分
+     *
+     * @param str 要处理的字符串
+     * @param separator 分隔符
+     * @return 分隔符后的一部分
+     */
+    public static String getSubstringAfter(String str, String separator) {
+        if (str == null || separator == null) {
+            return str;
+        }
+        if (separator.isEmpty()) {
+            return str;
+        }
+        int pos = str.indexOf(separator);
+        if (pos == -1) {
+            return "";
+        }
+        return str.substring(pos + separator.length());
+    }
+
+    /**
+     * 获取字符串中指定分隔符之间的部分
+     *
+     * @param str 要处理的字符串
+     * @param startSeparator 开始分隔符
+     * @param endSeparator 结束分隔符
+     * @return 分隔符之间的部分
+     */
+    public static String getSubstringBetween(String str, String startSeparator, String endSeparator) {
+        if (str == null || startSeparator == null || endSeparator == null) {
+            return null;
+        }
+        int start = str.indexOf(startSeparator);
+        if (start == -1) {
+            return null;
+        }
+        int end = str.indexOf(endSeparator, start + startSeparator.length());
+        if (end == -1) {
+            return null;
+        }
+        return str.substring(start + startSeparator.length(), end);
+    }
+
+    /**
+     * 将字符串转换为首字母大写
+     *
+     * @param str 要转换的字符串
+     * @return 首字母大写的字符串
+     */
+    public static String capitalize(String str) {
+        if (str == null || str.length() == 0) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
+    }
+
+    /**
+     * 将字符串转换为首字母小写
+     *
+     * @param str 要转换的字符串
+     * @return 首字母小写的字符串
+     */
+    public static String lowercaseFirst(String str) {
+        if (str == null || str.length() == 0) {
+            return str;
+        }
+        return str.substring(0, 1).toLowerCase() + str.substring(1);
+    }
+
+    /**
+     * 反转字符串
      *
      * @param str 要反转的字符串
      * @return 反转后的字符串
      */
     public static String reverse(String str) {
-        if (isNullEmpty(str)) {
-            return str;
+        if (str == null) {
+            return null;
         }
         return new StringBuilder(str).reverse().toString();
     }
 
     /**
-     * 检查字符串是否匹配正则表达式。
+     * 获取字符串中指定分隔符后的一部分，支持最后一个分隔符
+     *
+     * @param str 要处理的字符串
+     * @param separator 分隔符
+     * @return 分隔符后的一部分
+     */
+    public static String getSubstringAfterLast(String str, String separator) {
+        if (str == null || separator == null) {
+            return str;
+        }
+        if (separator.isEmpty()) {
+            return str;
+        }
+        int pos = str.lastIndexOf(separator);
+        if (pos == -1) {
+            return "";
+        }
+        return str.substring(pos + separator.length());
+    }
+
+    /**
+     * 替换字符串中的所有匹配项。
+     *
+     * @param text 原始文本。
+     * @param searchString 要搜索的字符串。
+     * @param replacement 替换字符串。
+     * @return 替换后的字符串，如果原始文本或搜索字符串为null，则返回null。
+     */
+    public static String replaceAll(String text, String searchString, String replacement) {
+        if (searchString.isEmpty()) {
+            return text;
+        }
+        int start = 0;
+        int max = -1;
+        int end = text.indexOf(searchString, start);
+        if (end == -1) {
+            return text;
+        }
+        int replacedLength = searchString.length();
+        int increase = replacement.length() - replacedLength;
+        increase = increase < 0 ? 0 : increase;
+        increase *= (max < 0 ? text.length() / searchString.length() : max / searchString.length());
+        StringBuilder sb = new StringBuilder(text.length() + increase);
+        while (end != -1) {
+            sb.append(text.substring(start, end)).append(replacement);
+            start = end + replacedLength;
+            if (--max == 0) {
+                break;
+            }
+            end = text.indexOf(searchString, start);
+        }
+        sb.append(text.substring(start));
+        return sb.toString();
+    }
+
+    /**
+     * 判断字符串是否以指定的字符串结尾
      *
      * @param str 字符串
-     * @param regex 正则表达式
-     * @return 如果字符串匹配正则表达式，则返回true；否则返回false
+     * @param suffix 后缀
+     * @return 如果字符串以指定的后缀结尾返回true，否则返回false
      */
-    public static boolean matchesRegex(String str, String regex) {
-        if (isNullEmpty(str)) {
+    public static boolean endsWithIgnoreCase(String str, String suffix) {
+        if (str == null || suffix == null) {
             return false;
         }
-        return str.matches(regex);
-    }
-
-    /**
-     * 对字符串进行URL编码。
-     *
-     * @param str 要编码的字符串
-     * @return 编码后的字符串
-     */
-    public static String urlEncode(String str) {
-        try {
-            return URLEncoder.encode(str, "UTF-8");
-        } catch (Exception e) {
-            throw new RuntimeException("Error encoding URL", e);
+        if (suffix.length() > str.length()) {
+            return false;
         }
+        return str.regionMatches(true, str.length() - suffix.length(), suffix, 0, suffix.length());
     }
 
     /**
-     * 对字符串进行URL解码。
-     *
-     * @param str 要解码的字符串
-     * @return 解码后的字符串
-     */
-    public static String urlDecode(String str) {
-        try {
-            return URLDecoder.decode(str, "UTF-8");
-        } catch (Exception e) {
-            throw new RuntimeException("Error decoding URL", e);
-        }
-    }
-
-    /**
-     * 将数字转换为字符串。
-     *
-     * @param number 数字
-     * @return 转换后的字符串
-     */
-    public static String numberToString(Number number) {
-        return number.toString();
-    }
-
-    /**
-     * 将字符串转换为整数。
+     * 判断字符串是否以指定的字符串开头
      *
      * @param str 字符串
-     * @return 转换后的整数
+     * @param prefix 前缀
+     * @return 如果字符串以指定的前缀开头返回true，否则返回false
      */
-    public static int stringToInteger(String str) {
-        return Integer.parseInt(str);
+    public static boolean startsWithIgnoreCase(String str, String prefix) {
+        if (str == null || prefix == null) {
+            return false;
+        }
+        if (prefix.length() > str.length()) {
+            return false;
+        }
+        return str.regionMatches(true, 0, prefix, 0, prefix.length());
     }
 
     /**
-     * 截取字符串到指定长度。
+     * 将字符串拆分成数组，忽略空字符串
      *
      * @param str 字符串
-     * @param maxLength 最大长度
-     * @return 截取后的字符串
+     * @param delimiter 分隔符
+     * @return 字符串数组
      */
-    public static String truncate(String str, int maxLength) {
-        if (isNullEmpty(str) || str.length() <= maxLength) {
-            return str;
+    public static String[] splitIgnoreEmpty(String str, String delimiter) {
+        if (str == null || delimiter == null) {
+            return new String[] {str};
         }
-        return str.substring(0, maxLength);
+        String[] parts = str.split(delimiter);
+        List<String> nonEmptyParts = new ArrayList<>();
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                nonEmptyParts.add(part);
+            }
+        }
+        return nonEmptyParts.toArray(new String[0]);
     }
 
     /**
-     * 创建一个字符串的重复副本。
+     * 将字符串数组连接成一个字符串
      *
-     * @param str 原始字符串
-     * @param repeatCount 重复次数
-     * @return 重复后的字符串
+     * @param parts 字符串数组
+     * @param delimiter 分隔符
+     * @return 连接后的字符串
      */
-    public static String repeat(String str, int repeatCount) {
-        if (isNullEmpty(str) || repeatCount <= 0) {
+    public static String join(String[] parts, String delimiter) {
+        if (parts == null) {
+            return null;
+        }
+        if (delimiter == null) {
+            delimiter = "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                builder.append(delimiter);
+            }
+            if (parts[i] != null) {
+                builder.append(parts[i]);
+            }
+        }
+        return builder.toString();
+    }
+
+    /**
+     * 判断字符串是否包含指定的子字符串，忽略大小写
+     *
+     * @param str 主字符串
+     * @param sub 子字符串
+     * @return 如果主字符串包含子字符串返回true，否则返回false
+     */
+    public static boolean containsIgnoreCase(String str, String sub) {
+        if (str == null || sub == null) {
+            return false;
+        }
+        return str.toLowerCase().contains(sub.toLowerCase());
+    }
+
+    /**
+     * 将字符串按照指定分隔符分割，保留空字符串
+     *
+     * @param str 字符串
+     * @param delimiter 分隔符
+     * @return 字符串数组
+     */
+    public static String[] splitPreserveEmpty(String str, String delimiter) {
+        if (str == null || delimiter == null) {
+            return new String[] {str};
+        }
+        return str.split(Pattern.quote(delimiter), -1);
+    }
+
+    /**
+     * 将字符串按照指定分隔符分割，并去除每个元素的空白
+     *
+     * @param str 字符串
+     * @param delimiter 分隔符
+     * @return 字符串数组
+     */
+    public static String[] splitTrim(String str, String delimiter) {
+        if (str == null || delimiter == null) {
+            return new String[] {str};
+        }
+        String[] parts = str.split(delimiter);
+        for (int i = 0; i < parts.length; i++) {
+            parts[i] = parts[i].trim();
+        }
+        return parts;
+    }
+
+    /**
+     * 将字符串按照指定分隔符分割，并去除每个元素的空白，同时忽略空字符串
+     *
+     * @param str 字符串
+     * @param delimiter 分隔符
+     * @return 字符串数组
+     */
+    public static String[] splitTrimIgnoreEmpty(String str, String delimiter) {
+        if (str == null || delimiter == null) {
+            return new String[] {str};
+        }
+        String[] parts = str.split(delimiter);
+        List<String> trimmedParts = new ArrayList<>();
+        for (String part : parts) {
+            String trimmedPart = part.trim();
+            if (!trimmedPart.isEmpty()) {
+                trimmedParts.add(trimmedPart);
+            }
+        }
+        return trimmedParts.toArray(new String[0]);
+    }
+
+    /**
+     * 删除字符串前导和尾随的指定字符
+     *
+     * @param str 字符串
+     * @param trimChars 要删除的字符集
+     * @return 去除了指定字符的字符串
+     */
+    public static String trim(String str, String trimChars) {
+        if (str == null || trimChars == null) {
             return str;
+        }
+        int start = 0;
+        int end = str.length();
+        while (start < end && trimChars.indexOf(str.charAt(start)) >= 0) {
+            start++;
+        }
+        while (end > start && trimChars.indexOf(str.charAt(end - 1)) >= 0) {
+            end--;
+        }
+        return str.substring(start, end);
+    }
+
+    /**
+     * 删除字符串前导的指定字符
+     *
+     * @param str 字符串
+     * @param trimChars 要删除的字符集
+     * @return 去除了前导指定字符的字符串
+     */
+    public static String trimLeadingChars(String str, String trimChars) {
+        if (str == null || trimChars == null) {
+            return str;
+        }
+        int start = 0;
+        while (start < str.length() && trimChars.indexOf(str.charAt(start)) >= 0) {
+            start++;
+        }
+        return str.substring(start);
+    }
+
+    /**
+     * 删除字符串尾随的指定字符
+     *
+     * @param str 字符串
+     * @param trimChars 要删除的字符集
+     * @return 去除了尾随指定字符的字符串
+     */
+    public static String trimTrailingChars(String str, String trimChars) {
+        if (str == null || trimChars == null) {
+            return str;
+        }
+        int end = str.length();
+        while (end > 0 && trimChars.indexOf(str.charAt(end - 1)) >= 0) {
+            end--;
+        }
+        return str.substring(0, end);
+    }
+
+    /**
+     * 从字符串中移除指定的字符
+     *
+     * @param str 字符串
+     * @param removeChar 要移除的字符
+     * @return 移除指定字符后的字符串
+     */
+    public static String removeChar(String str, char removeChar) {
+        if (str == null) {
+            return null;
         }
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < repeatCount; i++) {
-            sb.append(str);
+        for (char c : str.toCharArray()) {
+            if (c != removeChar) {
+                sb.append(c);
+            }
         }
         return sb.toString();
     }
 
     /**
-     * 替换字符串中的特定字符或子字符串。
+     * 从字符串中移除指定的字符集合
      *
-     * @param str 原始字符串
-     * @param oldSubstr 要被替换的子字符串
-     * @param newSubstr 新的子字符串
-     * @return 替换后的字符串
+     * @param str 字符串
+     * @param removeChars 要移除的字符集合
+     * @return 移除指定字符集合后的字符串
      */
-    public static String replace(String str, String oldSubstr, String newSubstr) {
-        if (isNullEmpty(str) || isNullEmpty(oldSubstr) || oldSubstr.isEmpty()) {
+    public static String removeChars(String str, String removeChars) {
+        if (str == null || removeChars == null) {
             return str;
         }
-        return str.replace(oldSubstr, newSubstr);
-    }
-
-    /**
-     * 检查字符串是否包含另一个字符串。
-     *
-     * @param str 主字符串
-     * @param subStr 子字符串
-     * @return 如果主字符串包含子字符串，则返回true；否则返回false
-     */
-    public static boolean contains(String str, String subStr) {
-        if (isNullEmpty(str) || isNullEmpty(subStr)) {
-            return false;
+        StringBuilder sb = new StringBuilder();
+        for (char c : str.toCharArray()) {
+            if (removeChars.indexOf(c) < 0) {
+                sb.append(c);
+            }
         }
-        return str.contains(subStr);
+        return sb.toString();
     }
 
     /**
-     * 统计字符串中特定字符或子字符串出现的次数。
-     *
-     * @param str 原始字符串
-     * @param subStr 子字符串
-     * @return 出现的次数
-     */
-    public static int countOccurrences(String str, String subStr) {
-        if (isNullEmpty(str) || isNullEmpty(subStr)) {
-            return 0;
-        }
-        int count = 0;
-        int idx = 0;
-        while ((idx = str.indexOf(subStr, idx)) != -1) {
-            count++;
-            idx += subStr.length();
-        }
-        return count;
-    }
-
-    /**
-     * 格式化字符串输出，支持类似于 printf 的格式化。
-     *
-     * @param format 格式字符串
-     * @param args 参数列表
-     * @return 格式化后的字符串
-     */
-    public static String format(String format, Object... args) {
-        return String.format(format, args);
-    }
-
-    /**
-     * 基于多个分隔符拆分字符串。
-     *
-     * @param str 原始字符串
-     * @param delimiters 分隔符数组
-     * @return 拆分后的字符串数组
-     */
-    public static String[] splitByMultipleDelimiters(String str, String... delimiters) {
-        if (isNullEmpty(str) || delimiters.length == 0) {
-            return new String[] {str};
-        }
-        String regex = String.join("|", delimiters);
-        return str.split(regex);
-    }
-
-    /**
-     * 国际化和本地化支持，此处简化为直接返回字符串。
-     *
-     * @param key 键
-     * @return 字符串资源
-     */
-    public static String getLocalizedString(String key) {
-        // 在实际应用中，这里应该调用资源加载器获取本地化的字符串
-        return key;
-    }
-
-    /**
-     * 安全性检查，例如检查字符串是否可能包含 SQL 注入或 XSS 风险。
+     * 将字符串中的指定字符替换为另一个字符
      *
      * @param str 字符串
-     * @return 如果存在安全风险，则返回 true；否则返回 false
-     */
-    public static boolean hasSecurityRisk(String str) {
-        // 这里只是一个示例实现，实际应用中应使用更复杂的安全检查机制
-        String regex = "(;|--|\\bOR\\b)";
-        return Pattern.compile(regex, Pattern.CASE_INSENSITIVE).matcher(str).find();
-    }
-
-    /**
-     * 正则表达式相关操作，查找所有匹配项。
-     *
-     * @param str 字符串
-     * @param regex 正则表达式
-     * @return 匹配的字符串数组
-     */
-    public static String[] findMatches(String str, String regex) {
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(str);
-        List<String> matches = new ArrayList<>();
-        while (matcher.find()) {
-            matches.add(matcher.group());
-        }
-        return matches.toArray(new String[0]);
-    }
-
-    /**
-     * 正则表达式相关操作，替换所有匹配项。
-     *
-     * @param str 字符串
-     * @param regex 正则表达式
-     * @param replacement 替换字符串
+     * @param oldChar 要替换的字符
+     * @param newChar 新字符
      * @return 替换后的字符串
      */
-    public static String replaceAllMatches(String str, String regex, String replacement) {
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(str);
-        return matcher.replaceAll(replacement);
-    }
-
-    /**
-     * 性能优化，对于大量数据处理，可能需要考虑字符串操作的性能优化。
-     *
-     * @param str 字符串
-     * @return 性能优化后的字符串
-     */
-    public static String optimizePerformance(String str) {
-        // 这里只是一个示例实现，实际应用中可能需要使用 StringBuilder 或其他优化技术
-        return str;
-    }
-
-    /**
-     * 自动检测字符串的编码，并进行相应的编码转换。
-     *
-     * @param bytes 字节流
-     * @return 转换后的字符串
-     */
-    public static String detectAndConvertEncoding(byte[] bytes) {
-        // 这里只是一个示例实现，实际应用中可能需要使用第三方库如 Apache Tika 来检测编码
-        return new String(bytes, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * 生成字符串的哈希值，用于比较或存储等。
-     *
-     * @param str 字符串
-     * @return 字符串的哈希值
-     */
-    public static String hash(String str) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(str.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1)
-                    hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Error hashing string", e);
+    public static String replaceChar(String str, char oldChar, char newChar) {
+        if (str == null) {
+            return null;
         }
+        StringBuilder sb = new StringBuilder();
+        for (char c : str.toCharArray()) {
+            sb.append(c == oldChar ? newChar : c);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 将字符串中的指定字符集合替换为另一个字符
+     *
+     * @param str 字符串
+     * @param oldChars 要替换的字符集合
+     * @param newChar 新字符
+     * @return 替换后的字符串
+     */
+    public static String replaceChars(String str, String oldChars, char newChar) {
+        if (str == null || oldChars == null) {
+            return str;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (char c : str.toCharArray()) {
+            if (oldChars.indexOf(c) >= 0) {
+                sb.append(newChar);
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 }

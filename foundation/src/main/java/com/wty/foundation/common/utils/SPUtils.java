@@ -5,52 +5,46 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.wty.foundation.common.init.AppContext;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Base64;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 public class SPUtils {
-    private static final String PREF_NAME = "MyPrefsFile"; // SharedPreferences 文件名
-    private static final String KEY_PREFIX = "key_"; // 存储键的前缀
-    private static final String OBJECT_KEY_PREFIX = "obj_"; // 对象存储键的前缀
-    private static final Gson GSON = new Gson(); // 使用 Gson 进行序列化和反序列化
-    private static volatile SPUtils INSTANCE = null; // 单例实例
-    private final SharedPreferences preferences; // SharedPreferences 实例
+    private static final String TAG = "SPUtils";
+    private static final String PREF_NAME = "MyPrefsFile";
+    private static final String KEY_PREFIX = "key_";
+    private static final String OBJECT_KEY_PREFIX = "obj_";
+    private static final Gson GSON = new Gson();
+    private static volatile SPUtils INSTANCE = null;
+    private final SharedPreferences preferences;
+    private SharedPreferences.Editor editor;
 
-    /**
-     * 私有构造函数，防止外部实例化。
-     *
-     * @param context 应用上下文
-     */
-    private SPUtils(Context context) {
-        if (context == null) {
-            throw new IllegalArgumentException("Context cannot be null.");
-        }
-        this.preferences = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+    private SPUtils() {
+        Context context = AppContext.getInstance().getContext();
+        this.preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        this.editor = preferences.edit();
     }
 
-    /**
-     * 初始化 SPUtils 单例。
-     *
-     * @param context 应用上下文
-     * @return 初始化后的 SPUtils 单例
-     */
-    public static SPUtils initialize(@NonNull Context context) {
+    public static SPUtils getInstance() {
         if (INSTANCE == null) {
             synchronized (SPUtils.class) {
                 if (INSTANCE == null) {
-                    INSTANCE = new SPUtils(context);
+                    INSTANCE = new SPUtils();
                 }
             }
         }
@@ -58,225 +52,380 @@ public class SPUtils {
     }
 
     /**
-     * 获取 SPUtils 单例。
-     *
-     * @return SPUtils 单例
-     */
-    public static SPUtils getInstance() {
-        if (INSTANCE == null) {
-            throw new IllegalStateException("SPUtils 必须先初始化。");
-        }
-        return INSTANCE;
-    }
-
-    /**
-     * 获取 SharedPreferences 编辑器。
-     *
-     * @return SharedPreferences.Editor
-     */
-    private SharedPreferences.Editor edit() {
-        return preferences.edit();
-    }
-
-    /**
-     * 存储字符串。
+     * 存储一个字符串值
      *
      * @param key 键
      * @param value 值
      */
-    public void putString(String key, String value) {
-        edit().putString(KEY_PREFIX + key, value).apply();
+    public void putString(@NonNull String key, String value) {
+        putString(key, value, false);
     }
 
     /**
-     * 获取字符串。
+     * 存储一个字符串值
+     *
+     * @param key 键
+     * @param value 值
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putString(@NonNull String key, String value, boolean useCommit) {
+        editor.putString(KEY_PREFIX + key, value);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个字符串值
+     *
+     * @param key 键
+     * @return 默认值 ""
+     */
+    public String getString(@NonNull String key) {
+        return preferences.getString(KEY_PREFIX + key, "");
+    }
+
+    /**
+     * 获取一个字符串值
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 字符串值
+     * @return 存储的字符串值或默认值
      */
-    public String getString(String key, String defaultValue) {
+    public String getString(@NonNull String key, String defaultValue) {
         return preferences.getString(KEY_PREFIX + key, defaultValue);
     }
 
     /**
-     * 存储整型。
+     * 存储一个整数值
      *
      * @param key 键
      * @param value 值
      */
-    public void putInt(String key, int value) {
-        edit().putInt(KEY_PREFIX + key, value).apply();
+    public void putInt(@NonNull String key, int value) {
+        putInt(key, value, false);
     }
 
     /**
-     * 获取整型。
+     * 存储一个整数值
+     *
+     * @param key 键
+     * @param value 值
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putInt(@NonNull String key, int value, boolean useCommit) {
+        editor.putInt(KEY_PREFIX + key, value);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个整数值
+     *
+     * @param key 键
+     * @return 默认值 -1
+     */
+    public int getInt(@NonNull String key) {
+        return preferences.getInt(KEY_PREFIX + key, -1);
+    }
+
+    /**
+     * 获取一个整数值
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 整型值
+     * @return 存储的整数值或默认值
      */
-    public int getInt(String key, int defaultValue) {
+    public int getInt(@NonNull String key, int defaultValue) {
         return preferences.getInt(KEY_PREFIX + key, defaultValue);
     }
 
     /**
-     * 存储长整型。
+     * 存储一个长整数值
      *
      * @param key 键
      * @param value 值
      */
-    public void putLong(String key, long value) {
-        edit().putLong(KEY_PREFIX + key, value).apply();
+    public void putLong(@NonNull String key, long value) {
+        putLong(key, value, false);
     }
 
     /**
-     * 获取长整型。
+     * 存储一个长整数值
+     *
+     * @param key 键
+     * @param value 值
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putLong(@NonNull String key, long value, boolean useCommit) {
+        editor.putLong(KEY_PREFIX + key, value);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个长整数值
+     *
+     * @param key 键
+     * @return 默认值 -1L
+     */
+    public long getLong(@NonNull String key) {
+        return preferences.getLong(KEY_PREFIX + key, -1L);
+    }
+
+    /**
+     * 获取一个长整数值
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 长整型值
+     * @return 存储的长整数值或默认值
      */
-    public long getLong(String key, long defaultValue) {
+    public long getLong(@NonNull String key, long defaultValue) {
         return preferences.getLong(KEY_PREFIX + key, defaultValue);
     }
 
     /**
-     * 存储浮点型。
+     * 存储一个浮点数值
      *
      * @param key 键
      * @param value 值
      */
-    public void putFloat(String key, float value) {
-        edit().putFloat(KEY_PREFIX + key, value).apply();
+    public void putFloat(@NonNull String key, float value) {
+        putFloat(key, value, false);
     }
 
     /**
-     * 获取浮点型。
+     * 存储一个浮点数值
+     *
+     * @param key 键
+     * @param value 值
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putFloat(@NonNull String key, float value, boolean useCommit) {
+        editor.putFloat(KEY_PREFIX + key, value);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个浮点数值
+     *
+     * @param key 键
+     * @return 默认值 -1f
+     */
+    public float getFloat(@NonNull String key) {
+        return preferences.getFloat(KEY_PREFIX + key, -1f);
+    }
+
+    /**
+     * 获取一个浮点数值
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 浮点型值
+     * @return 存储的浮点数值或默认值
      */
-    public float getFloat(String key, float defaultValue) {
+    public float getFloat(@NonNull String key, float defaultValue) {
         return preferences.getFloat(KEY_PREFIX + key, defaultValue);
     }
 
     /**
-     * 存储双精度型。
+     * 存储一个双精度浮点数值
      *
      * @param key 键
      * @param value 值
      */
-    public void putDouble(String key, double value) {
-        putLong(key, Double.doubleToRawLongBits(value));
+    public void putDouble(@NonNull String key, double value) {
+        putDouble(key, value, false);
     }
 
     /**
-     * 获取双精度型。
+     * 存储一个双精度浮点数值
+     *
+     * @param key 键
+     * @param value 值
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putDouble(@NonNull String key, double value, boolean useCommit) {
+        putLong(key, Double.doubleToRawLongBits(value), useCommit);
+    }
+
+    /**
+     * 获取一个双精度浮点数值
+     *
+     * @param key 键
+     * @return 默认值 -1L
+     */
+    public double getDouble(@NonNull String key) {
+        long bits = getLong(key, Double.doubleToRawLongBits(-1L));
+        return Double.longBitsToDouble(bits);
+    }
+
+    /**
+     * 获取一个双精度浮点数值
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 双精度型值
+     * @return 存储的双精度浮点数值或默认值
      */
-    public double getDouble(String key, double defaultValue) {
+    public double getDouble(@NonNull String key, double defaultValue) {
         long bits = getLong(key, Double.doubleToRawLongBits(defaultValue));
         return Double.longBitsToDouble(bits);
     }
 
     /**
-     * 存储布尔型。
+     * 存储一个布尔值
      *
      * @param key 键
      * @param value 值
      */
-    public void putBoolean(String key, boolean value) {
-        edit().putBoolean(KEY_PREFIX + key, value).apply();
+    public void putBoolean(@NonNull String key, boolean value) {
+        putBoolean(key, value, false);
     }
 
     /**
-     * 获取布尔型。
+     * 存储一个布尔值
+     *
+     * @param key 键
+     * @param value 值
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putBoolean(@NonNull String key, boolean value, boolean useCommit) {
+        editor.putBoolean(KEY_PREFIX + key, value);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个布尔值
+     *
+     * @param key 键
+     * @return 默认值 false
+     */
+    public boolean getBoolean(@NonNull String key) {
+        return preferences.getBoolean(KEY_PREFIX + key, false);
+    }
+
+    /**
+     * 获取一个布尔值
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 布尔型值
+     * @return 存储的布尔值或默认值
      */
-    public boolean getBoolean(String key, boolean defaultValue) {
+    public boolean getBoolean(@NonNull String key, boolean defaultValue) {
         return preferences.getBoolean(KEY_PREFIX + key, defaultValue);
     }
 
     /**
-     * 存储字符串集合。
+     * 存储一个字符串集合
      *
      * @param key 键
      * @param value 值
      */
-    public void putStringSet(String key, Set<String> value) {
-        edit().putStringSet(KEY_PREFIX + key, value).apply();
+    public void putStringSet(@NonNull String key, Set<String> value) {
+        putStringSet(key, value, false);
     }
 
     /**
-     * 获取字符串集合。
+     * 存储一个字符串集合
+     *
+     * @param key 键
+     * @param value 值
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putStringSet(@NonNull String key, Set<String> value, boolean useCommit) {
+        editor.putStringSet(KEY_PREFIX + key, value);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个字符串集合
+     *
+     * @param key 键
+     * @return 默认值
+     */
+    public Set<String> getStringSet(@NonNull String key) {
+        return preferences.getStringSet(KEY_PREFIX + key, Collections.<String>emptySet());
+    }
+
+    /**
+     * 获取一个字符串集合
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 字符串集合
+     * @return 存储的字符串集合或默认值
      */
-    public Set<String> getStringSet(String key, Set<String> defaultValue) {
-        return preferences.getStringSet(KEY_PREFIX + key, defaultValue != null ? defaultValue : new HashSet<>());
+    public Set<String> getStringSet(@NonNull String key, Set<String> defaultValue) {
+        return preferences.getStringSet(KEY_PREFIX + key, defaultValue);
     }
 
     /**
-     * 存储可序列化的对象。
+     * 存储一个可序列化的对象
      *
      * @param key 键
      * @param obj 对象
      */
-    public <T extends Serializable> void putSerializableObject(String key, T obj) {
-        String json = GSON.toJson(obj);
-        edit().putString(OBJECT_KEY_PREFIX + key, json).apply();
+    public <T extends Serializable> void putSerializableObject(@NonNull String key, T obj) {
+        putSerializableObject(key, obj, false);
     }
 
     /**
-     * 获取可序列化的对象。
+     * 存储一个可序列化的对象
      *
      * @param key 键
-     * @param clazz 类型
-     * @param <T> 泛型类型
-     * @return 反序列化的对象
+     * @param obj 对象
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
      */
-    public <T extends Serializable> T getSerializableObject(String key, Class<T> clazz) {
+    public <T extends Serializable> void putSerializableObject(@NonNull String key, T obj, boolean useCommit) {
+        String json = GSON.toJson(obj);
+        editor.putString(OBJECT_KEY_PREFIX + key, json);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个可序列化的对象
+     *
+     * @param key 键
+     * @param clazz 对象的类
+     * @param <T> 泛型类型
+     * @return 存储的可序列化对象
+     */
+    public <T extends Serializable> T getSerializableObject(@NonNull String key, Class<T> clazz) {
         String json = preferences.getString(OBJECT_KEY_PREFIX + key, null);
         if (json == null) {
             return null;
         }
-        Type type = new TypeToken<T>() {}.getType();
-        return GSON.fromJson(json, type);
+        return GSON.fromJson(json, clazz);
     }
 
     /**
-     * 存储 Parcelable 对象。
+     * 存储一个 Parcelable 对象
      *
      * @param key 键
      * @param obj 对象
      */
-    public <T extends Parcelable> void putParcelableObject(String key, T obj) {
+    public <T extends Parcelable> void putParcelableObject(@NonNull String key, T obj) {
+        putParcelableObject(key, obj, false);
+    }
+
+    /**
+     * 存储一个 Parcelable 对象
+     *
+     * @param key 键
+     * @param obj 对象
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public <T extends Parcelable> void putParcelableObject(@NonNull String key, T obj, boolean useCommit) {
         Parcel parcel = Parcel.obtain();
         obj.writeToParcel(parcel, 0);
         byte[] bytes = parcel.marshall();
         parcel.recycle();
-        putBytes(OBJECT_KEY_PREFIX + key, bytes);
+        putBytes(OBJECT_KEY_PREFIX + key, bytes, useCommit);
     }
 
     /**
-     * 获取 Parcelable 对象。
+     * 获取一个 Parcelable 对象
      *
      * @param key 键
-     * @param clazz 类型
+     * @param clazz 对象的类
      * @param <T> 泛型类型
-     * @return 反序列化的对象
+     * @return 存储的 Parcelable 对象
      */
-    public <T extends Parcelable> T getParcelableObject(String key, Class<T> clazz) {
+    public <T extends Parcelable> T getParcelableObject(@NonNull String key, Class<T> clazz) {
         byte[] bytes = getBytes(OBJECT_KEY_PREFIX + key, null);
         if (bytes == null) {
             return null;
@@ -290,23 +439,35 @@ public class SPUtils {
     }
 
     /**
-     * 存储字节数组。
+     * 存储一个字节数组
      *
      * @param key 键
      * @param value 字节数组
      */
-    public void putBytes(String key, byte[] value) {
-        edit().putString(key, encodeBytesToBase64(value)).apply();
+    public void putBytes(@NonNull String key, byte[] value) {
+        putBytes(key, value, false);
     }
 
     /**
-     * 获取字节数组。
+     * 存储一个字节数组
+     *
+     * @param key 键
+     * @param value 字节数组
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void putBytes(@NonNull String key, byte[] value, boolean useCommit) {
+        editor.putString(key, encodeBytesToBase64(value));
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 获取一个字节数组
      *
      * @param key 键
      * @param defaultValue 默认值
-     * @return 字节数组
+     * @return 存储的字节数组或默认值
      */
-    public byte[] getBytes(String key, byte[] defaultValue) {
+    public byte[] getBytes(@NonNull String key, byte[] defaultValue) {
         String encoded = getString(key, null);
         if (encoded == null) {
             return defaultValue;
@@ -315,41 +476,50 @@ public class SPUtils {
     }
 
     /**
-     * 存储 Parcelable 列表。
+     * 存储一个 Parcelable 列表
      *
      * @param key 键
      * @param list 列表
-     * @param <T> 泛型类型
      */
-    public <T extends Parcelable> void putParcelableList(String key, List<T> list) {
-        Parcel parcel = Parcel.obtain();
+    public <T extends Parcelable> void putParcelableList(@NonNull String key, List<T> list) {
+        putParcelableList(key, list, false);
+    }
 
+    /**
+     * 存储一个 Parcelable 列表
+     *
+     * @param key 键
+     * @param list 列表
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public <T extends Parcelable> void putParcelableList(@NonNull String key, List<T> list, boolean useCommit) {
+        Parcel parcel = Parcel.obtain();
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             for (T item : list) {
                 parcel.writeParcelable(item, 0);
                 byte[] marshalledBytes = parcel.marshall();
-                baos.write(marshalledBytes); // 直接写入字节数组
+                baos.write(marshalledBytes);
                 parcel.recycle();
-                parcel = Parcel.obtain(); // 重置 Parcel 的状态
+                parcel = Parcel.obtain();
             }
             byte[] bytes = baos.toByteArray();
-            putBytes(OBJECT_KEY_PREFIX + key, bytes);
+            putBytes(OBJECT_KEY_PREFIX + key, bytes, useCommit);
         } catch (IOException e) {
             throw new RuntimeException("将 Parcelable 列表写入字节时出错", e);
         } finally {
-            parcel.recycle(); // 确保 Parcel 被回收
+            parcel.recycle();
         }
     }
 
     /**
-     * 获取 Parcelable 列表。
+     * 获取一个 Parcelable 列表
      *
      * @param key 键
-     * @param clazz 类型
+     * @param clazz 列表中对象的类
      * @param <T> 泛型类型
-     * @return 反序列化的列表
+     * @return 存储的 Parcelable 列表
      */
-    public <T extends Parcelable> List<T> getParcelableList(String key, Class<T> clazz) {
+    public <T extends Parcelable> List<T> getParcelableList(@NonNull String key, Class<T> clazz) {
         byte[] bytes = getBytes(OBJECT_KEY_PREFIX + key, null);
         if (bytes == null) {
             return new ArrayList<>();
@@ -366,7 +536,6 @@ public class SPUtils {
                 }
             }
         } catch (Exception e) {
-            // 处理可能出现的 BadParcelableException 异常
             throw new RuntimeException("从字节读取 Parcelable 列表时出错", e);
         } finally {
             parcel.recycle();
@@ -375,48 +544,123 @@ public class SPUtils {
     }
 
     /**
-     * 检查是否包含某个键。
+     * 获取所有存储的键值对
+     *
+     * @return 包含所有键值对的 Map
+     */
+    public Map<String, Object> getAllEntries() {
+        Map<String, ?> allEntries = preferences.getAll();
+        Map<String, Object> convertedEntries = new LinkedHashMap<>();
+        if (allEntries == null) {
+            return convertedEntries;
+        }
+        for (Map.Entry<String, ?> entry : allEntries.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (key == null || value == null) {
+                Log.w(TAG, "Skipping null key or value in getAllEntries.");
+                continue;
+            }
+            if (!key.startsWith(OBJECT_KEY_PREFIX)) {
+                convertedEntries.put(key, value);
+                continue;
+            }
+            String jsonValue = value.toString();
+            if (jsonValue == null) {
+                Log.w(TAG, "Skipping null JSON value in getAllEntries.");
+                continue;
+            }
+            try {
+                Type type = new TypeToken<Serializable>() {}.getType();
+                Object deserializedObject = GSON.fromJson(jsonValue, type);
+                convertedEntries.put(key, deserializedObject);
+            } catch (Exception e) {
+                convertedEntries.put(key, jsonValue);
+                Log.e(TAG, "Failed to deserialize object from JSON: " + key, e);
+            }
+        }
+        return convertedEntries;
+    }
+
+    /**
+     * 检查是否包含某个键
      *
      * @param key 键
      * @return 是否存在
      */
-    public boolean contains(String key) {
-        return preferences.contains(KEY_PREFIX + key);
+    public boolean contains(@NonNull String key) {
+        return preferences.contains(OBJECT_KEY_PREFIX + key);
     }
 
     /**
-     * 删除某个键对应的值。
+     * 移除一个键值对
      *
-     * @param key 键
+     * @param key 要移除的键
      */
-    public void remove(String key) {
-        edit().remove(KEY_PREFIX + key).apply();
+    public void remove(@NonNull String key) {
+        remove(key, false);
     }
 
     /**
-     * 清空 SharedPreferences 中的所有数据。
+     * 移除一个键值对
+     *
+     * @param key 要移除的键
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void remove(@NonNull String key, boolean useCommit) {
+        editor.remove(KEY_PREFIX + key);
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 清除所有存储的数据
      */
     public void clear() {
-        edit().clear().apply();
+        clear(false);
     }
 
     /**
-     * 将字节数组编码为 Base64 字符串。
+     * 清除所有存储的数据
+     *
+     * @param useCommit 如果为 true，则使用 .commit() 提交更改；否则使用 .apply()
+     */
+    public void clear(boolean useCommit) {
+        editor.clear();
+        commitOrApply(useCommit);
+    }
+
+    /**
+     * 提交更改到 SharedPreferences
+     *
+     * 默认使用 .apply() 方法，因为它异步执行且不会阻塞主线程 如果需要同步提交，请设置 useCommit 为 true
+     *
+     * @param useCommit 如果为 true，则使用 .commit() 方法（同步）；否则使用 .apply() 方法（异步）
+     */
+    private void commitOrApply(boolean useCommit) {
+        if (useCommit) {
+            editor.commit();
+        } else {
+            editor.apply();
+        }
+    }
+
+    /**
+     * 将字节数组编码为 Base64 字符串
      *
      * @param value 字节数组
      * @return 编码后的字符串
      */
-    private static String encodeBytesToBase64(byte[] value) {
+    private String encodeBytesToBase64(byte[] value) {
         return Base64.encodeToString(value, Base64.DEFAULT);
     }
 
     /**
-     * 将 Base64 字符串解码为字节数组。
+     * 将 Base64 字符串解码为字节数组
      *
      * @param encoded 编码后的字符串
      * @return 解码后的字节数组
      */
-    private static byte[] decodeBase64ToBytes(String encoded) {
+    private byte[] decodeBase64ToBytes(String encoded) {
         return Base64.decode(encoded, Base64.DEFAULT);
     }
 }

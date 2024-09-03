@@ -10,6 +10,7 @@ import androidx.annotation.Nullable;
  * 数据、集合等相关工具类
  */
 public class ArrayUtils {
+    // 私有构造函数防止外部实例化
     private ArrayUtils() {}
 
     /**

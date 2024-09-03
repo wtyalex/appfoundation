@@ -6,7 +6,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-public final class TimeUtils {
+public class TimeUtils {
 
     public static final String YYYY_MM_DD = "yyyy-MM-dd";
     public static final String HH_MM = "HH:mm";
@@ -44,18 +44,31 @@ public final class TimeUtils {
     /**
      * 将字符串时间解析为毫秒值。
      *
+     * 此方法尝试将给定的字符串时间按照指定的日期时间格式解析为毫秒值。 如果解析失败，则打印异常信息并返回 0。
+     *
      * @param time 字符串时间
      * @param format 日期时间格式
-     * @return 解析出的毫秒值
+     * @return 解析出的毫秒值；如果解析失败则返回 0
      */
     public static long str2Millis(String time, String format) {
         SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.getDefault());
         try {
             return sdf.parse(time).getTime();
         } catch (ParseException e) {
+            System.err.println("无法解析时间: " + time + " 格式: " + format);
             e.printStackTrace();
+            return 0;
         }
-        return 0;
+    }
+
+    /**
+     * 格式化当前时间为指定格式的字符串。
+     *
+     * @param format 日期时间格式
+     * @return 格式化后的字符串
+     */
+    public static String getCurrentTimeStr(String format) {
+        return time2Str(System.currentTimeMillis(), format);
     }
 
     /**
@@ -83,16 +96,6 @@ public final class TimeUtils {
      */
     public static Date getCurrentDate() {
         return new Date();
-    }
-
-    /**
-     * 格式化当前时间为指定格式的字符串。
-     *
-     * @param format 日期时间格式
-     * @return 格式化后的字符串
-     */
-    public static String getCurrentTimeStr(String format) {
-        return time2Str(System.currentTimeMillis(), format);
     }
 
     /**

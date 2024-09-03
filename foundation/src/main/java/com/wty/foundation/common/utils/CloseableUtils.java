@@ -4,16 +4,16 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-import android.util.Log;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class CloseableUtils {
 
+    private static final Logger LOGGER = Logger.getLogger(CloseableUtils.class.getName());
     private static final String TAG = "CloseableUtils";
 
-    private CloseableUtils() {
-        // 防止实例化
-    }
+    // 私有构造函数防止外部实例化
+    private CloseableUtils() {}
 
     /**
      * 安全关闭 Closeable 对象。 如果对象不是 null，则尝试关闭它，并捕获任何可能发生的 IOException。
@@ -25,7 +25,7 @@ public class CloseableUtils {
             try {
                 closeable.close();
             } catch (IOException e) {
-                Log.e(TAG, Log.getStackTraceString(e));
+                logError(e);
             }
         }
     }
@@ -36,10 +36,8 @@ public class CloseableUtils {
      * @param closeables 要关闭的对象列表
      */
     public static void closeAll(Closeable... closeables) {
-        if (closeables != null) {
-            for (Closeable closeable : closeables) {
-                close(closeable);
-            }
+        for (Closeable closeable : closeables) {
+            close(closeable);
         }
     }
 
@@ -53,7 +51,7 @@ public class CloseableUtils {
             try {
                 autoCloseable.close();
             } catch (Exception e) {
-                Log.e(TAG, Log.getStackTraceString(e));
+                logError(e);
             }
         }
     }
@@ -64,10 +62,8 @@ public class CloseableUtils {
      * @param autoCloseables 要关闭的对象列表
      */
     public static void closeAll(AutoCloseable... autoCloseables) {
-        if (autoCloseables != null) {
-            for (AutoCloseable autoCloseable : autoCloseables) {
-                close(autoCloseable);
-            }
+        for (AutoCloseable autoCloseable : autoCloseables) {
+            close(autoCloseable);
         }
     }
 
@@ -105,7 +101,27 @@ public class CloseableUtils {
                 if (ignoreExceptionType.isInstance(e)) {
                     // Ignore the exception
                 } else {
-                    Log.e(TAG, Log.getStackTraceString(e));
+                    logError(e);
+                }
+            }
+        }
+    }
+
+    /**
+     * 关闭 AutoCloseable 资源时忽略特定类型的异常。
+     *
+     * @param autoCloseable 要关闭的资源
+     * @param ignoreExceptionType 要忽略的异常类型
+     */
+    public static void closeIgnoring(Class<? extends Exception> ignoreExceptionType, AutoCloseable autoCloseable) {
+        if (autoCloseable != null) {
+            try {
+                autoCloseable.close();
+            } catch (Exception e) {
+                if (ignoreExceptionType.isInstance(e)) {
+                    // Ignore the exception
+                } else {
+                    logError(e);
                 }
             }
         }
@@ -126,25 +142,45 @@ public class CloseableUtils {
             } catch (IOException e) {
                 retries++;
                 if (retries > maxRetries) {
-                    Log.e(TAG, Log.getStackTraceString(e));
+                    logError(e);
                     break;
+                }
+                try {
+                    Thread.sleep(100); // Simple backoff strategy.
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
                 }
             }
         }
     }
-}
 
-/**
- * 一个包含多个异常的复合异常类。
- */
-class CompositeException extends RuntimeException {
-    private final List<IOException> exceptions;
-
-    public CompositeException(List<IOException> exceptions) {
-        this.exceptions = exceptions;
+    /**
+     * 记录错误日志。
+     *
+     * @param e 异常对象
+     */
+    private static void logError(Exception e) {
+        LOGGER.log(Level.SEVERE, TAG + ": An error occurred while closing resources.", e);
     }
 
-    public List<IOException> getExceptions() {
-        return exceptions;
+    /**
+     * 一个包含多个异常的复合异常类。
+     */
+    public static class CompositeException extends Exception {
+        private final List<IOException> exceptions;
+
+        public CompositeException(List<IOException> exceptions) {
+            super("Multiple exceptions occurred while closing resources.");
+            this.exceptions = exceptions;
+        }
+
+        /**
+         * 获取所有收集的异常。
+         *
+         * @return 异常列表
+         */
+        public List<IOException> getExceptions() {
+            return exceptions;
+        }
     }
 }

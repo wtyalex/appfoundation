@@ -6,7 +6,7 @@ import java.util.Locale;
 
 import android.os.SystemClock;
 
-public final class TimeSync {
+public class TimeSync {
 
     private static long differ;
     private static boolean isSync;

@@ -15,7 +15,7 @@ public class MathUtils {
     private MathUtils() {}
 
     /**
-     * 比较两个浮点型是否相等，两个浮点型差的绝对值小于10E-7f相等。
+     * 比较两个浮点型是否相等，两个浮点型差的绝对值小于10E-7f相等
      *
      * @param f1 第一个浮点型
      * @param f2 第二个浮点型
@@ -26,7 +26,7 @@ public class MathUtils {
     }
 
     /**
-     * 比较两个双精度浮点型是否相等，两个浮点型差的绝对值小于10E-7f相等。
+     * 比较两个双精度浮点型是否相等，两个浮点型差的绝对值小于10E-7f相等
      *
      * @param f1 第一个双精度浮点型
      * @param f2 第二个双精度浮点型
@@ -37,7 +37,7 @@ public class MathUtils {
     }
 
     /**
-     * 比较一个浮点型和一个双精度浮点型是否相等，差的绝对值小于10E-7f相等。
+     * 比较一个浮点型和一个双精度浮点型是否相等，差的绝对值小于10E-7f相等
      *
      * @param f1 浮点型
      * @param f2 双精度浮点型
@@ -48,7 +48,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转int，失败返回默认值。
+     * 字符串转int，失败返回默认值
      *
      * @param str 字符串
      * @return int，默认值为0
@@ -58,7 +58,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转int，失败返回默认值。
+     * 字符串转int，失败返回默认值
      *
      * @param str 字符串
      * @param defValue 默认值
@@ -75,7 +75,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转long，失败返回默认值。
+     * 字符串转long，失败返回默认值
      *
      * @param str 字符串
      * @return long，默认值为0
@@ -85,7 +85,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转long，失败返回默认值。
+     * 字符串转long，失败返回默认值
      *
      * @param str 字符串
      * @param defValue 默认值
@@ -102,7 +102,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转float，失败返回默认值。
+     * 字符串转float，失败返回默认值
      *
      * @param str 字符串
      * @return float，默认值为0
@@ -112,7 +112,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转float，失败返回默认值。
+     * 字符串转float，失败返回默认值
      *
      * @param str 字符串
      * @param defValue 默认值
@@ -129,7 +129,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转double，失败返回默认值。
+     * 字符串转double，失败返回默认值
      *
      * @param str 字符串
      * @return double，默认值为0
@@ -139,7 +139,7 @@ public class MathUtils {
     }
 
     /**
-     * 字符串转double，失败返回默认值。
+     * 字符串转double，失败返回默认值
      *
      * @param str 字符串
      * @param defValue 默认值
@@ -156,7 +156,7 @@ public class MathUtils {
     }
 
     /**
-     * 对单精度浮点数进行小数位截取。
+     * 对单精度浮点数进行小数位截取
      *
      * @param f 浮点数
      * @param accuracy 保留几位小数
@@ -175,7 +175,7 @@ public class MathUtils {
     }
 
     /**
-     * 对字符串表示的数字进行小数位截取。
+     * 对字符串表示的数字进行小数位截取
      *
      * @param f 字符串形式的数字
      * @param accuracy 保留几位小数
@@ -194,259 +194,14 @@ public class MathUtils {
     }
 
     /**
-     * 求两个整数的最大值。
+     * 安全除法（基本的浮点数运算）
      *
-     * @param a 第一个整数
-     * @param b 第二个整数
-     * @return 最大值
-     */
-    public static int max(int a, int b) {
-        return Math.max(a, b);
-    }
-
-    /**
-     * 求两个整数的最小值。
-     *
-     * @param a 第一个整数
-     * @param b 第二个整数
-     * @return 最小值
-     */
-    public static int min(int a, int b) {
-        return Math.min(a, b);
-    }
-
-    /**
-     * 求两个浮点数的最大值。
-     *
-     * @param a 第一个浮点数
-     * @param b 第二个浮点数
-     * @return 最大值
-     */
-    public static float max(float a, float b) {
-        return Math.max(a, b);
-    }
-
-    /**
-     * 求两个浮点数的最小值。
-     *
-     * @param a 第一个浮点数
-     * @param b 第二个浮点数
-     * @return 最小值
-     */
-    public static float min(float a, float b) {
-        return Math.min(a, b);
-    }
-
-    /**
-     * 求两个双精度浮点数的最大值。
-     *
-     * @param a 第一个双精度浮点数
-     * @param b 第二个双精度浮点数
-     * @return 最大值
-     */
-    public static double max(double a, double b) {
-        return Math.max(a, b);
-    }
-
-    /**
-     * 求两个双精度浮点数的最小值。
-     *
-     * @param a 第一个双精度浮点数
-     * @param b 第二个双精度浮点数
-     * @return 最小值
-     */
-    public static double min(double a, double b) {
-        return Math.min(a, b);
-    }
-
-    /**
-     * 对整数进行四舍五入。
-     *
-     * @param value 整数值
-     * @return 四舍五入后的结果
-     */
-    public static int roundToInt(double value) {
-        return (int)Math.round(value);
-    }
-
-    /**
-     * 对浮点数进行四舍五入。
-     *
-     * @param value 浮点数值
-     * @return 四舍五入后的结果
-     */
-    public static float roundToFloat(double value) {
-        return (float)Math.round(value);
-    }
-
-    /**
-     * 对双精度浮点数进行四舍五入。
-     *
-     * @param value 双精度浮点数值
-     * @return 四舍五入后的结果
-     */
-    public static double roundToDouble(double value) {
-        return Math.round(value);
-    }
-
-    /**
-     * 计算自然对数。
-     *
-     * @param x 数值
-     * @return 自然对数
-     */
-    public static double log(double x) {
-        return Math.log(x);
-    }
-
-    /**
-     * 计算常用对数。
-     *
-     * @param x 数值
-     * @return 常用对数
-     */
-    public static double log10(double x) {
-        return Math.log10(x);
-    }
-
-    /**
-     * 计算指数。
-     *
-     * @param x 数值
-     * @return 指数
-     */
-    public static double exp(double x) {
-        return Math.exp(x);
-    }
-
-    /**
-     * 计算正弦值。
-     *
-     * @param x 角度值（弧度）
-     * @return 正弦值
-     */
-    public static double sin(double x) {
-        return Math.sin(x);
-    }
-
-    /**
-     * 计算余弦值。
-     *
-     * @param x 角度值（弧度）
-     * @return 余弦值
-     */
-    public static double cos(double x) {
-        return Math.cos(x);
-    }
-
-    /**
-     * 计算正切值。
-     *
-     * @param x 角度值（弧度）
-     * @return 正切值
-     */
-    public static double tan(double x) {
-        return Math.tan(x);
-    }
-
-    /**
-     * 计算反正弦值。
-     *
-     * @param x 数值
-     * @return 反正弦值
-     */
-    public static double asin(double x) {
-        return Math.asin(x);
-    }
-
-    /**
-     * 计算反余弦值。
-     *
-     * @param x 数值
-     * @return 反余弦值
-     */
-    public static double acos(double x) {
-        return Math.acos(x);
-    }
-
-    /**
-     * 计算反正切值。
-     *
-     * @param x 数值
-     * @return 反正切值
-     */
-    public static double atan(double x) {
-        return Math.atan(x);
-    }
-
-    /**
-     * 计算绝对值。
-     *
-     * @param x 数值
-     * @return 绝对值
-     */
-    public static double abs(double x) {
-        return Math.abs(x);
-    }
-
-    /**
-     * 计算绝对值。
-     *
-     * @param x 数值
-     * @return 绝对值
-     */
-    public static float abs(float x) {
-        return Math.abs(x);
-    }
-
-    /**
-     * 计算绝对值。
-     *
-     * @param x 数值
-     * @return 绝对值
-     */
-    public static long abs(long x) {
-        return Math.abs(x);
-    }
-
-    /**
-     * 计算绝对值。
-     *
-     * @param x 数值
-     * @return 绝对值
-     */
-    public static int abs(int x) {
-        return Math.abs(x);
-    }
-
-    /**
-     * 幂运算。
-     *
-     * @param base 底数
-     * @param exponent 指数
-     * @return 结果
-     */
-    public static double pow(double base, double exponent) {
-        return Math.pow(base, exponent);
-    }
-
-    /**
-     * 开方运算。
-     *
-     * @param x 数值
-     * @return 开方结果
-     */
-    public static double sqrt(double x) {
-        return Math.sqrt(x);
-    }
-
-    /**
-     * 安全除法。
+     * 此方法执行浮点数除法，并在除数为零时返回指定的默认值。
      *
      * @param dividend 被除数
      * @param divisor 除数
-     * @param defaultValue 默认值
-     * @return 结果
+     * @param defaultValue 默认值（当除数为零时返回此值）
+     * @return 除法的结果，如果除数为零则返回默认值
      */
     public static double safeDivide(double dividend, double divisor, double defaultValue) {
         if (divisor == 0) {
@@ -456,7 +211,7 @@ public class MathUtils {
     }
 
     /**
-     * 随机整数。
+     * 随机整数
      *
      * @param min 最小值
      * @param max 最大值
@@ -468,7 +223,7 @@ public class MathUtils {
     }
 
     /**
-     * 随机双精度浮点数。
+     * 随机双精度浮点数
      *
      * @param min 最小值
      * @param max 最大值
@@ -480,18 +235,7 @@ public class MathUtils {
     }
 
     /**
-     * 模运算。
-     *
-     * @param a 被模数
-     * @param b 模数
-     * @return 结果
-     */
-    public static double mod(double a, double b) {
-        return a % b;
-    }
-
-    /**
-     * 数组求和。
+     * 数组求和
      *
      * @param numbers 数值数组
      * @return 和
@@ -505,7 +249,7 @@ public class MathUtils {
     }
 
     /**
-     * 数组求乘积。
+     * 数组求乘积
      *
      * @param numbers 数值数组
      * @return 乘积
@@ -519,7 +263,7 @@ public class MathUtils {
     }
 
     /**
-     * 生成等差数列。
+     * 生成等差数列
      *
      * @param start 起始值
      * @param end 结束值
@@ -535,7 +279,7 @@ public class MathUtils {
     }
 
     /**
-     * 生成等比数列。
+     * 生成等比数列
      *
      * @param start 起始值
      * @param end 结束值

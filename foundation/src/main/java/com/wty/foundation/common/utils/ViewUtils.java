@@ -1,5 +1,8 @@
 package com.wty.foundation.common.utils;
 
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -10,7 +13,8 @@ import androidx.annotation.IdRes;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
-public final class ViewUtils {
+public class ViewUtils {
+    private static final String TAG = "ViewUtils";
 
     private ViewUtils() {}
 
@@ -48,7 +52,8 @@ public final class ViewUtils {
         }
         try {
             return (T)lp;
-        } catch (Exception e) {
+        } catch (ClassCastException e) {
+            Log.e(TAG, "类型转换失败", e);
             return null;
         }
     }
@@ -154,70 +159,26 @@ public final class ViewUtils {
     }
 
     /**
-     * 设置视图的可见性。
+     * 设置ImageView的Bitmap资源。
      *
-     * @param view 视图
-     * @param visibility 可见性标志，如View.VISIBLE, View.INVISIBLE, View.GONE
+     * @param view ImageView
+     * @param bitmap Bitmap资源
      */
-    public static void setVisibility(View view, int visibility) {
+    public static <T extends ImageView> void setImageBitmap(T view, @Nullable Bitmap bitmap) {
         if (view != null) {
-            view.setVisibility(visibility);
+            view.setImageBitmap(bitmap);
         }
     }
 
     /**
-     * 判断视图是否可见。
+     * 设置ImageView的Uri资源。
      *
-     * @param view 视图
-     * @return 如果视图可见返回true，否则返回false
+     * @param view ImageView
+     * @param uri Uri资源
      */
-    public static boolean isVisible(View view) {
-        return view != null && view.getVisibility() == View.VISIBLE;
-    }
-
-    /**
-     * 判断视图是否不可见。
-     *
-     * @param view 视图
-     * @return 如果视图不可见返回true，否则返回false
-     */
-    public static boolean isGone(View view) {
-        return view != null && view.getVisibility() == View.GONE;
-    }
-
-    /**
-     * 设置视图的背景资源。
-     *
-     * @param view 视图
-     * @param id 背景资源ID
-     */
-    public static void setBackground(View view, @DrawableRes int id) {
+    public static <T extends ImageView> void setImageURI(T view, @Nullable Uri uri) {
         if (view != null) {
-            view.setBackgroundResource(id);
-        }
-    }
-
-    /**
-     * 设置视图的点击监听器。
-     *
-     * @param view 视图
-     * @param listener 点击监听器
-     */
-    public static void setOnClickListener(View view, View.OnClickListener listener) {
-        if (view != null) {
-            view.setOnClickListener(listener);
-        }
-    }
-
-    /**
-     * 设置视图的长按监听器。
-     *
-     * @param view 视图
-     * @param listener 长按监听器
-     */
-    public static void setOnLongClickListener(View view, View.OnLongClickListener listener) {
-        if (view != null) {
-            view.setOnLongClickListener(listener);
+            view.setImageURI(uri);
         }
     }
 }
