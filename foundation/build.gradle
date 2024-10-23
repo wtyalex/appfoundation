@@ -20,41 +20,43 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+
     buildFeatures {
         viewBinding true
     }
+
     dataBinding {
         enabled = true
     }
 }
 
 dependencies {
-
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'com.google.android.material:material:1.12.0'
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
-    //eventbus
-    implementation 'org.greenrobot:eventbus:3.3.1'
-    //Gson
-    implementation 'com.google.code.gson:gson:2.10'
-    //Rxjava3需要依赖
+    // EventBus
+    api 'org.greenrobot:eventbus:3.3.1'
+    // Gson
+    api 'com.google.code.gson:gson:2.10'
+    // RxJava3
     api 'io.reactivex.rxjava3:rxjava:3.1.5'
-    //okhttp
-    implementation 'com.squareup.okhttp3:okhttp:4.10.0'
-    //配置retrofit2.0
-    api 'com.squareup.retrofit2:retrofit:2.9.0'
-    //让retrofit2.0 支持Gson解析
-    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
-    implementation 'io.reactivex.rxjava3:rxandroid:3.0.2'
-    //让retrofit支持Rxjava2
-    api 'com.squareup.retrofit2:adapter-rxjava3:2.9.0'
+    // OkHttp
+    api 'com.squareup.okhttp3:okhttp:4.10.0'
     //日志拦截器
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.10.0'
-
+    api 'com.squareup.okhttp3:logging-interceptor:4.10.0'
+    //配置Retrofit2.0
+    api 'com.squareup.retrofit2:retrofit:2.9.0'
+    //让Retrofit2.0 支持Gson解析
+    api 'com.squareup.retrofit2:converter-gson:2.9.0'
+    // RxAndroid
+    api 'io.reactivex.rxjava3:rxandroid:3.0.2'
+    //让Retrofit支持Rxjava2
+    api 'com.squareup.retrofit2:adapter-rxjava3:2.9.0'
 }

@@ -16,7 +16,7 @@ public class CloseableUtils {
     private CloseableUtils() {}
 
     /**
-     * 安全关闭 Closeable 对象。 如果对象不是 null，则尝试关闭它，并捕获任何可能发生的 IOException。
+     * 安全关闭 Closeable 对象 如果对象不是 null，则尝试关闭它，并捕获任何可能发生的 IOException
      *
      * @param closeable 要关闭的对象
      */
@@ -31,7 +31,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 尝试关闭多个 Closeable 对象。 该方法接受可变参数列表的 Closeable 对象，并尝试依次关闭它们。 如果某个对象关闭时抛出异常，异常会被记录但不会阻止其他对象的关闭。
+     * 尝试关闭多个 Closeable 对象 该方法接受可变参数列表的 Closeable 对象，并尝试依次关闭它们 如果某个对象关闭时抛出异常，异常会被记录但不会阻止其他对象的关闭
      *
      * @param closeables 要关闭的对象列表
      */
@@ -42,7 +42,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 尝试关闭 AutoCloseable 实现对象。 该方法用于支持 Java 7 及以上版本的 try-with-resources 语法中的资源。
+     * 尝试关闭 AutoCloseable 实现对象 该方法用于支持 Java 7 及以上版本的 try-with-resources 语法中的资源
      *
      * @param autoCloseable 要关闭的对象
      */
@@ -57,7 +57,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 尝试关闭多个 AutoCloseable 实现对象。 该方法接受可变参数列表的 AutoCloseable 对象，并尝试依次关闭它们。 如果某个对象关闭时抛出异常，异常会被记录但不会阻止其他对象的关闭。
+     * 尝试关闭多个 AutoCloseable 实现对象 该方法接受可变参数列表的 AutoCloseable 对象，并尝试依次关闭它们 如果某个对象关闭时抛出异常，异常会被记录但不会阻止其他对象的关闭
      *
      * @param autoCloseables 要关闭的对象列表
      */
@@ -68,7 +68,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 批量关闭多个资源，并捕获所有发生的异常。 如果有异常发生，将收集所有的异常，并最终抛出一个 CompositeException 包含所有异常。
+     * 批量关闭多个资源，并捕获所有发生的异常 如果有异常发生，将收集所有的异常，并最终抛出一个 CompositeException 包含所有异常
      *
      * @param closeables 要关闭的资源列表
      * @throws CompositeException 如果有多个异常发生，则抛出包含所有异常的 CompositeException
@@ -88,7 +88,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 忽略特定类型的异常。 在关闭资源时，如果发生指定类型的异常，则忽略并继续。
+     * 忽略特定类型的异常 在关闭资源时，如果发生指定类型的异常，则忽略并继续
      *
      * @param closeable 要关闭的资源
      * @param ignoreExceptionType 要忽略的异常类型
@@ -108,7 +108,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 关闭 AutoCloseable 资源时忽略特定类型的异常。
+     * 关闭 AutoCloseable 资源时忽略特定类型的异常
      *
      * @param autoCloseable 要关闭的资源
      * @param ignoreExceptionType 要忽略的异常类型
@@ -128,7 +128,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 关闭资源时尝试重试。 如果关闭失败，可以指定最大重试次数。
+     * 关闭资源时尝试重试 如果关闭失败，可以指定最大重试次数
      *
      * @param closeable 要关闭的资源
      * @param maxRetries 最大重试次数
@@ -155,7 +155,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 记录错误日志。
+     * 记录错误日志
      *
      * @param e 异常对象
      */
@@ -164,7 +164,7 @@ public class CloseableUtils {
     }
 
     /**
-     * 一个包含多个异常的复合异常类。
+     * 一个包含多个异常的复合异常类
      */
     public static class CompositeException extends Exception {
         private final List<IOException> exceptions;
@@ -175,7 +175,7 @@ public class CloseableUtils {
         }
 
         /**
-         * 获取所有收集的异常。
+         * 获取所有收集的异常
          *
          * @return 异常列表
          */

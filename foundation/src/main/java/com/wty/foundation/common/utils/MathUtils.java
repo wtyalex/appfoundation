@@ -249,7 +249,7 @@ public class MathUtils {
     /**
      * 安全除法（基本的浮点数运算）
      *
-     * 此方法执行浮点数除法，并在除数为零时返回指定的默认值。
+     * 此方法执行浮点数除法，并在除数为零时返回指定的默认值
      *
      * @param dividend 被除数
      * @param divisor 除数

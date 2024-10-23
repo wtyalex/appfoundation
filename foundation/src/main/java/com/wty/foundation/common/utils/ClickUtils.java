@@ -1,5 +1,6 @@
 package com.wty.foundation.common.utils;
 
+import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import android.graphics.Rect;
@@ -95,10 +96,12 @@ public class ClickUtils {
     public static void setClickAlphaChange(final View view, float alphaOnPress, float alphaOnRelease) {
         view.setOnClickListener(v -> {
             if (isClickAllowed()) {
-                // 减小透明度
                 v.setAlpha(alphaOnPress);
-                // 恢复透明度
-                v.postDelayed(() -> v.setAlpha(alphaOnRelease), 100);
+                v.postDelayed(() -> {
+                    if (v != null) {
+                        v.setAlpha(alphaOnRelease);
+                    }
+                }, 100);
             }
         });
     }
@@ -135,6 +138,7 @@ public class ClickUtils {
 
         view.setOnClickListener(v -> {
             if (isClickAllowed()) {
+                v.clearAnimation(); // 清除之前的动画
                 v.startAnimation(animation);
             }
         });
@@ -147,10 +151,15 @@ public class ClickUtils {
      * @param delayMillis 延迟的时间（单位：毫秒）
      */
     public static void setDelayedClick(final View view, long delayMillis) {
+        final Handler handler = new Handler(Looper.getMainLooper());
+
         view.setOnClickListener(v -> {
             if (isClickAllowed()) {
-                v.postDelayed(() -> {
-                    // 延迟后执行的操作
+                handler.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        // 延迟后执行的操作
+                    }
                 }, delayMillis);
             }
         });
@@ -200,26 +209,23 @@ public class ClickUtils {
             new GestureDetector(view.getContext(), new GestureDetector.SimpleOnGestureListener() {
                 @Override
                 public boolean onSingleTapConfirmed(MotionEvent e) {
-                    // 如果确认为单击，则调用单击监听器
                     if (singleClickListener != null) {
                         singleClickListener.onClick(view);
                     }
-                    return true;// 表示此事件已被处理
+                    return true;
                 }
 
                 @Override
                 public boolean onDoubleTap(MotionEvent e) {
-                    // 如果确认为双击，则调用双击监听器
                     if (doubleClickListener != null) {
                         doubleClickListener.onClick(view);
                     }
-                    return true;// 表示此事件已被处理
+                    return true;
                 }
 
-                // 重写其他必要方法，如onDown, onShowPress等
                 @Override
                 public boolean onDown(MotionEvent e) {
-                    return true;// 必须返回true，否则onSingleTapConfirmed和onDoubleTap不会被调用
+                    return true;
                 }
             });
 
@@ -235,16 +241,17 @@ public class ClickUtils {
      */
     public static void setDebouncedClickListener(final View view, final View.OnClickListener listener,
         final long debounceMillis) {
-        final Runnable delayedAction = () -> {
-            if (listener != null) {
-                listener.onClick(view);// 防抖逻辑：在防抖时间后执行点击事件
-            }
-        };
         final Handler handler = new Handler(Looper.getMainLooper());
+        final WeakReference<View> weakView = new WeakReference<>(view);
 
         view.setOnClickListener(v -> {
-            handler.removeCallbacks(delayedAction);// 每次点击时取消之前的延迟任务
-            handler.postDelayed(delayedAction, debounceMillis);// 重新设置延迟任务
+            handler.removeCallbacksAndMessages(null); // 移除所有回调
+            handler.postDelayed(() -> {
+                View currentView = weakView.get();
+                if (currentView != null && listener != null) {
+                    listener.onClick(currentView);
+                }
+            }, debounceMillis);
         });
     }
 }

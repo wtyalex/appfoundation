@@ -9,7 +9,7 @@ public class MapCoordinateConverter {
     private MapCoordinateConverter() {}
 
     /**
-     * 将 WGS84 坐标转换为 GCJ-02 坐标。
+     * 将 WGS84 坐标转换为 GCJ-02 坐标
      *
      * @param wgsLat WGS84 纬度
      * @param wgsLon WGS84 经度
@@ -35,7 +35,7 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 将 GCJ-02 坐标转换为 WGS84 坐标。
+     * 将 GCJ-02 坐标转换为 WGS84 坐标
      *
      * @param gcjLat GCJ-02 纬度
      * @param gcjLon GCJ-02 经度
@@ -61,7 +61,7 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 将 BD-09 坐标转换为 GCJ-02 坐标。
+     * 将 BD-09 坐标转换为 GCJ-02 坐标
      *
      * @param bdLat BD-09 纬度
      * @param bdLon BD-09 经度
@@ -79,7 +79,7 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 将 BD-09 坐标转换为 WGS84 坐标。
+     * 将 BD-09 坐标转换为 WGS84 坐标
      *
      * @param bdLat BD-09 纬度
      * @param bdLon BD-09 经度
@@ -92,18 +92,18 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 检查坐标是否在中国境内。
+     * 检查坐标是否在中国境内
      *
      * @param lat 纬度
      * @param lon 经度
-     * @return 如果坐标在中国境内返回 true，否则返回 false。
+     * @return 如果坐标在中国境内返回 true，否则返回 false
      */
     private static boolean isInChina(double lat, double lon) {
         return lon > 73.66 && lon < 135.05 && lat > 3.86 && lat < 53.55;
     }
 
     /**
-     * 计算纬度偏移量。
+     * 计算纬度偏移量
      *
      * @param x 经度差
      * @param y 纬度差
@@ -118,7 +118,7 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 计算经度偏移量。
+     * 计算经度偏移量
      *
      * @param x 经度差
      * @param y 纬度差
@@ -133,7 +133,7 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 验证坐标值的有效性。
+     * 验证坐标值的有效性
      *
      * @param lat 纬度
      * @param lon 经度

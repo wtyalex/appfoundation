@@ -18,7 +18,7 @@ public class ResUtils {
     private ResUtils() {}
 
     /**
-     * 获取指定资源ID的字符串资源。
+     * 获取指定资源ID的字符串资源
      *
      * @param id 字符串资源的ID
      * @return 返回对应ID的字符串资源内容
@@ -28,7 +28,7 @@ public class ResUtils {
     }
 
     /**
-     * 获取指定资源ID的颜色资源。
+     * 获取指定资源ID的颜色资源
      *
      * @param id 颜色资源的ID
      * @return 返回对应ID的颜色资源值
@@ -38,7 +38,7 @@ public class ResUtils {
     }
 
     /**
-     * 获取指定资源ID的Drawable资源。
+     * 获取指定资源ID的Drawable资源
      *
      * @param id 图片资源的ID
      * @return 返回对应ID的Drawable对象
@@ -48,7 +48,7 @@ public class ResUtils {
     }
 
     /**
-     * 获取指定资源ID的尺寸资源，并将其转换为像素大小。
+     * 获取指定资源ID的尺寸资源，并将其转换为像素大小
      *
      * @param id 尺寸资源的ID
      * @return 返回对应ID的尺寸资源表示的像素大小
@@ -58,7 +58,7 @@ public class ResUtils {
     }
 
     /**
-     * 获取指定资源ID的字符串数组资源。
+     * 获取指定资源ID的字符串数组资源
      *
      * @param id 字符串数组资源的ID
      * @return 返回对应ID的字符串数组

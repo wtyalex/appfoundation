@@ -178,15 +178,15 @@ public class SoftKeyboardUtils {
         };
 
         // 注意：在不再需要监听键盘状态变化时，请务必调用 removeListener 方法移除监听器，
-        // 否则可能导致内存泄漏。
+        // 否则可能导致内存泄漏
         rootView.getViewTreeObserver().addOnGlobalLayoutListener(keyboardListener);
     }
 
     /**
-     * 移除全局布局监听器。
+     * 移除全局布局监听器
      *
      * <p>
-     * 在不再需要监听软键盘状态变化时，必须调用此方法以避免内存泄漏。
+     * 在不再需要监听软键盘状态变化时，必须调用此方法以避免内存泄漏
      * </p>
      *
      * @param rootView 根布局视图

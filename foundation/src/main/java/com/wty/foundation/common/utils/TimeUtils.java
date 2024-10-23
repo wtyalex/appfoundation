@@ -6,6 +6,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
+import android.util.Log;
+
 public class TimeUtils {
 
     public static final String YYYY_MM_DD = "yyyy-MM-dd";
@@ -16,7 +18,7 @@ public class TimeUtils {
     private TimeUtils() {}
 
     /**
-     * 将毫秒值转换为指定格式的字符串。
+     * 将毫秒值转换为指定格式的字符串
      *
      * @param millis 毫秒值
      * @param format 日期时间格式
@@ -30,7 +32,7 @@ public class TimeUtils {
     }
 
     /**
-     * 将Calendar对象转换为指定格式的字符串。
+     * 将Calendar对象转换为指定格式的字符串
      *
      * @param calendar Calendar对象
      * @param format 日期时间格式
@@ -42,9 +44,9 @@ public class TimeUtils {
     }
 
     /**
-     * 将字符串时间解析为毫秒值。
+     * 将字符串时间解析为毫秒值
      *
-     * 此方法尝试将给定的字符串时间按照指定的日期时间格式解析为毫秒值。 如果解析失败，则打印异常信息并返回 0。
+     * 此方法尝试将给定的字符串时间按照指定的日期时间格式解析为毫秒值 如果解析失败，则打印异常信息并返回 0
      *
      * @param time 字符串时间
      * @param format 日期时间格式
@@ -62,7 +64,7 @@ public class TimeUtils {
     }
 
     /**
-     * 格式化当前时间为指定格式的字符串。
+     * 格式化当前时间为指定格式的字符串
      *
      * @param format 日期时间格式
      * @return 格式化后的字符串
@@ -72,7 +74,7 @@ public class TimeUtils {
     }
 
     /**
-     * 获取当前时间的毫秒值。
+     * 获取当前时间的毫秒值
      *
      * @return 当前时间的毫秒值
      */
@@ -81,7 +83,7 @@ public class TimeUtils {
     }
 
     /**
-     * 获取当前时间的Calendar对象。
+     * 获取当前时间的Calendar对象
      *
      * @return 当前时间的Calendar对象
      */
@@ -90,7 +92,7 @@ public class TimeUtils {
     }
 
     /**
-     * 获取当前时间的Date对象。
+     * 获取当前时间的Date对象
      *
      * @return 当前时间的Date对象
      */
@@ -99,7 +101,7 @@ public class TimeUtils {
     }
 
     /**
-     * 计算两个时间戳之间的差值（毫秒）。
+     * 计算两个时间戳之间的差值（毫秒）
      *
      * @param startTime 开始时间（毫秒）
      * @param endTime 结束时间（毫秒）
@@ -110,7 +112,7 @@ public class TimeUtils {
     }
 
     /**
-     * 判断给定的时间是否在指定的时间范围内。
+     * 判断给定的时间是否在指定的时间范围内
      *
      * @param currentTime 当前时间（毫秒）
      * @param startTime 开始时间（毫秒）
@@ -122,7 +124,7 @@ public class TimeUtils {
     }
 
     /**
-     * 获取给定日期的开始时间（毫秒），即当天00:00:00的时间戳。
+     * 获取给定日期的开始时间（毫秒），即当天00:00:00的时间戳
      *
      * @param date 给定的日期
      * @return 开始时间（毫秒）
@@ -138,7 +140,7 @@ public class TimeUtils {
     }
 
     /**
-     * 获取给定日期的结束时间（毫秒），即当天23:59:59的时间戳。
+     * 获取给定日期的结束时间（毫秒），即当天23:59:59的时间戳
      *
      * @param date 给定的日期
      * @return 结束时间（毫秒）
@@ -154,7 +156,7 @@ public class TimeUtils {
     }
 
     /**
-     * 获取给定日期所在月份的第一天（毫秒）。
+     * 获取给定日期所在月份的第一天（毫秒）
      *
      * @param date 给定的日期
      * @return 月份第一天的时间戳
@@ -171,7 +173,7 @@ public class TimeUtils {
     }
 
     /**
-     * 获取给定日期所在月份的最后一天（毫秒）。
+     * 获取给定日期所在月份的最后一天（毫秒）
      *
      * @param date 给定的日期
      * @return 月份最后一天的时间戳
@@ -185,5 +187,26 @@ public class TimeUtils {
         calendar.set(Calendar.SECOND, 59);
         calendar.set(Calendar.MILLISECOND, 999);
         return calendar.getTimeInMillis();
+    }
+
+    /**
+     * 将格林威治时间（GMT）字符串转换为北京时间（GMT+8）的时间戳
+     *
+     * @param dateStr 格林威治时间字符串，格式为 "EEE, dd MMM yyyy HH:mm:ss z"，例如 "Mon, 01 Jan 2023 12:00:00 GMT"
+     * @return 北京时间（GMT+8）的时间戳（毫秒），如果解析失败则返回 0
+     */
+    public static long gmt2Date(String dateStr) {
+        SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
+        try {
+            Date date = sdf.parse(dateStr);
+            System.out.println("GMT+8 Date格式：" + date);
+
+            long time = date.getTime();
+            System.out.println("GMT+8 时间戳：" + time);
+            return time;
+        } catch (ParseException e) {
+            Log.e("TimeUtils", Log.getStackTraceString(e));
+        }
+        return 0;
     }
 }

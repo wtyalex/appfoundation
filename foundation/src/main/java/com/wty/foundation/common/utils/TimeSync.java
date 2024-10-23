@@ -14,7 +14,7 @@ public class TimeSync {
     private TimeSync() {}
 
     /**
-     * 重置时间同步状态。
+     * 重置时间同步状态
      */
     public static void reset() {
         differ = 0;
@@ -22,7 +22,7 @@ public class TimeSync {
     }
 
     /**
-     * 同步时间到外部时间源。
+     * 同步时间到外部时间源
      *
      * @param time 外部时间源的时间戳
      */
@@ -35,7 +35,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取经过同步后的时间戳。
+     * 获取经过同步后的时间戳
      *
      * @return 同步后的时间戳
      */
@@ -48,7 +48,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取同步时间差。
+     * 获取同步时间差
      *
      * @return 时间差
      */
@@ -57,7 +57,7 @@ public class TimeSync {
     }
 
     /**
-     * 检查时间是否已经同步。
+     * 检查时间是否已经同步
      *
      * @return 是否已同步
      */
@@ -66,7 +66,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取未经同步的系统时间戳。
+     * 获取未经同步的系统时间戳
      *
      * @return 未经同步的时间戳
      */
@@ -75,7 +75,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取当前的时间戳，无论是否已经同步。
+     * 获取当前的时间戳，无论是否已经同步
      *
      * @return 当前的时间戳
      */
@@ -84,7 +84,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取当前时间的毫秒数。
+     * 获取当前时间的毫秒数
      *
      * @return 当前时间的毫秒数
      */
@@ -93,7 +93,7 @@ public class TimeSync {
     }
 
     /**
-     * 同步时间到UTC时间。
+     * 同步时间到UTC时间
      *
      * @param utcTime UTC时间戳
      */
@@ -106,7 +106,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取同步时间对应的日期时间对象。
+     * 获取同步时间对应的日期时间对象
      *
      * @return 日期时间对象
      */
@@ -115,7 +115,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取系统时间对应的日期时间对象。
+     * 获取系统时间对应的日期时间对象
      *
      * @return 日期时间对象
      */
@@ -124,7 +124,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取当前时间与同步时间的差值。
+     * 获取当前时间与同步时间的差值
      *
      * @return 差值（毫秒）
      */
@@ -133,7 +133,7 @@ public class TimeSync {
     }
 
     /**
-     * 获取当前时间戳与指定时间戳之间的差值。
+     * 获取当前时间戳与指定时间戳之间的差值
      *
      * @param timestamp 指定时间戳
      * @return 差值（毫秒）
@@ -143,7 +143,7 @@ public class TimeSync {
     }
 
     /**
-     * 手动设置时间差。
+     * 手动设置时间差
      *
      * @param difference 时间差（毫秒）
      */
@@ -152,7 +152,7 @@ public class TimeSync {
     }
 
     /**
-     * 格式化时间戳为指定格式的字符串。
+     * 格式化时间戳为指定格式的字符串
      *
      * @param timestamp 时间戳
      * @param format 日期时间格式

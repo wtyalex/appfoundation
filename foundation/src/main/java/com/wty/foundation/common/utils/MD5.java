@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 public class MD5 {
 
     /**
-     * 使用MD5算法生成字符串的散列值。
+     * 使用MD5算法生成字符串的散列值
      *
      * @param content 需要进行散列的字符串
      * @return 返回一个表示MD5哈希值的十六进制字符串
@@ -36,7 +36,7 @@ public class MD5 {
     }
 
     /**
-     * 将字符串编码为UTF-8格式的字节数组。
+     * 将字符串编码为UTF-8格式的字节数组
      *
      * @param content 要编码的字符串
      * @return UTF-8格式的字节数组

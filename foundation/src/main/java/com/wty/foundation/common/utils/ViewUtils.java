@@ -19,7 +19,7 @@ public class ViewUtils {
     private ViewUtils() {}
 
     /**
-     * 从父视图中查找子视图。
+     * 从父视图中查找子视图
      *
      * @param parent 父视图
      * @param id 子视图的资源ID
@@ -35,7 +35,7 @@ public class ViewUtils {
     }
 
     /**
-     * 获取视图的布局参数。
+     * 获取视图的布局参数
      *
      * @param view 视图
      * @param <T> 布局参数的具体类型
@@ -59,7 +59,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置视图的内边距。
+     * 设置视图的内边距
      *
      * @param view 视图
      * @param left 左侧内边距
@@ -75,7 +75,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置视图的垂直方向内边距。
+     * 设置视图的垂直方向内边距
      *
      * @param view 视图
      * @param top 上侧内边距
@@ -89,7 +89,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置视图的垂直方向内边距，上下相同。
+     * 设置视图的垂直方向内边距，上下相同
      *
      * @param view 视图
      * @param padding 上下相同的内边距
@@ -99,7 +99,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置视图的水平方向内边距。
+     * 设置视图的水平方向内边距
      *
      * @param view 视图
      * @param left 左侧内边距
@@ -113,7 +113,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置视图的水平方向内边距，左右相同。
+     * 设置视图的水平方向内边距，左右相同
      *
      * @param view 视图
      * @param padding 左右相同的内边距
@@ -123,7 +123,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置TextView的文本资源ID。
+     * 设置TextView的文本资源ID
      *
      * @param view TextView
      * @param id 文本资源ID
@@ -135,7 +135,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置TextView的文本。
+     * 设置TextView的文本
      *
      * @param view TextView
      * @param text 要设置的文本
@@ -147,7 +147,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置ImageView的图片资源ID。
+     * 设置ImageView的图片资源ID
      *
      * @param view ImageView
      * @param id 图片资源ID
@@ -159,7 +159,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置ImageView的Bitmap资源。
+     * 设置ImageView的Bitmap资源
      *
      * @param view ImageView
      * @param bitmap Bitmap资源
@@ -171,7 +171,7 @@ public class ViewUtils {
     }
 
     /**
-     * 设置ImageView的Uri资源。
+     * 设置ImageView的Uri资源
      *
      * @param view ImageView
      * @param uri Uri资源
