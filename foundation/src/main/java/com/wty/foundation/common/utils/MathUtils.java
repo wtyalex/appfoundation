@@ -1,6 +1,7 @@
 package com.wty.foundation.common.utils;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -153,6 +154,58 @@ public class MathUtils {
             Log.e(TAG, "str2double", e);
             return defValue;
         }
+    }
+
+    /**
+     * 字符串转BigInteger，失败返回默认值
+     *
+     * @param str 字符串
+     * @param defValue 默认值
+     * @return BigInteger
+     */
+    public static BigInteger str2bigInteger(String str, BigInteger defValue) {
+        try {
+            return new BigInteger(str);
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "str2bigInteger", e);
+            return defValue;
+        }
+    }
+
+    /**
+     * 字符串转BigInteger，失败返回默认值BigInteger.ZERO
+     *
+     * @param str 字符串
+     * @return BigInteger，默认值为BigInteger.ZERO
+     */
+    public static BigInteger str2bigInteger(String str) {
+        return str2bigInteger(str, BigInteger.ZERO);
+    }
+
+    /**
+     * 字符串转BigDecimal，失败返回默认值
+     *
+     * @param str 字符串
+     * @param defValue 默认值
+     * @return BigDecimal
+     */
+    public static BigDecimal str2bigDecimal(String str, BigDecimal defValue) {
+        try {
+            return new BigDecimal(str);
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "str2bigDecimal", e);
+            return defValue;
+        }
+    }
+
+    /**
+     * 字符串转BigDecimal，失败返回默认值BigDecimal.ZERO
+     *
+     * @param str 字符串
+     * @return BigDecimal，默认值为BigDecimal.ZERO
+     */
+    public static BigDecimal str2bigDecimal(String str) {
+        return str2bigDecimal(str, BigDecimal.ZERO);
     }
 
     /**

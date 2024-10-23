@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
 public class StringUtils {
 
     /**
@@ -42,6 +45,24 @@ public class StringUtils {
     }
 
     /**
+     * 检查给定字符串是否为null、空或空的JSON数组
+     *
+     * @param str 要检查的字符串
+     * @return 如果字符串为null、空或空的JSON数组返回true，否则返回false
+     */
+    public static boolean isEmptyJsonArray(String str) {
+        if (isNullEmpty(str)) {
+            return true;
+        }
+        try {
+            JSONArray jsonArray = new JSONArray(str);
+            return jsonArray.length() == 0;
+        } catch (JSONException e) {
+            return false;
+        }
+    }
+
+    /**
      * 检查两个字符串是否相等
      *
      * @param str1 第一个字符串
@@ -57,11 +78,11 @@ public class StringUtils {
     }
 
     /**
-     * 返回指定索引首次出现后的子字符串。
+     * 返回指定索引首次出现后的子字符串
      *
-     * @param str 要处理的字符串。
-     * @param indexOf 要查找的索引。
-     * @return 索引之后的子字符串。
+     * @param str 要处理的字符串
+     * @param indexOf 要查找的索引
+     * @return 索引之后的子字符串
      */
     public static String substringIndexOf(String str, String indexOf) {
         if (isNullEmpty(str) || isNullEmpty(indexOf)) {
@@ -74,11 +95,11 @@ public class StringUtils {
     }
 
     /**
-     * 返回指定索引最后一次出现后的子字符串。
+     * 返回指定索引最后一次出现后的子字符串
      *
-     * @param str 要处理的字符串。
-     * @param indexOf 要查找的索引。
-     * @return 索引之后的子字符串。
+     * @param str 要处理的字符串
+     * @param indexOf 要查找的索引
+     * @return 索引之后的子字符串
      */
     public static String substringLastIndexOf(String str, String indexOf) {
         if (isNullEmpty(str) || isNullEmpty(indexOf)) {
@@ -313,12 +334,12 @@ public class StringUtils {
     }
 
     /**
-     * 替换字符串中的所有匹配项。
+     * 替换字符串中的所有匹配项
      *
-     * @param text 原始文本。
-     * @param searchString 要搜索的字符串。
-     * @param replacement 替换字符串。
-     * @return 替换后的字符串，如果原始文本或搜索字符串为null，则返回null。
+     * @param text 原始文本
+     * @param searchString 要搜索的字符串
+     * @param replacement 替换字符串
+     * @return 替换后的字符串，如果原始文本或搜索字符串为null，则返回null
      */
     public static String replaceAll(String text, String searchString, String replacement) {
         if (searchString.isEmpty()) {
