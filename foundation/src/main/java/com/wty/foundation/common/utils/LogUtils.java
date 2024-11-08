@@ -24,15 +24,15 @@ import android.util.Log;
  * 在发布版本中可以通过 {@link BuildConfig#DEBUG} 来控制是否打印日志
  */
 public class LogUtils {
-    private static final String DEFAULT_TAG = "LogUtils";
+    private static final String DEFAULT_TAG = "LogUtils"; // 默认日志标签
     private static final int MAX_LOG_SIZE = 4000; // Android最大单条日志大小
-    private static final ThreadLocal<String> CURRENT_TAG = new ThreadLocal<>();
-    private static final ThreadLocal<Boolean> INCLUDE_STACK_TRACE = new ThreadLocal<>();
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm", Locale.getDefault());
+    private static final ThreadLocal<String> CURRENT_TAG = new ThreadLocal<>(); // 当前线程的日志标签
+    private static final ThreadLocal<Boolean> INCLUDE_STACK_TRACE = new ThreadLocal<>(); // 是否包含堆栈跟踪信息
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm", Locale.getDefault()); // 日期格式
     private static final SimpleDateFormat DATE_TIME_FORMAT =
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
+        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()); // 日期时间格式
 
-    private static final BlockingQueue<Runnable> LOG_QUEUE = new LinkedBlockingQueue<>();
+    private static final BlockingQueue<Runnable> LOG_QUEUE = new LinkedBlockingQueue<>(); // 日志任务队列
     private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(1, // 核心线程数
         5, // 最大线程数
         60L, // 空闲线程存活时间
@@ -41,26 +41,26 @@ public class LogUtils {
     );
 
     static {
-        EXECUTOR.prestartAllCoreThreads();
+        EXECUTOR.prestartAllCoreThreads(); // 预启动所有核心线程
     }
 
-    private static String LOG_FILE_PATH = ""; // 初始为空
-    private static final String LOG_TAG = "LogUtils";
+    private static String LOG_FILE_PATH = ""; // 初始为空的日志文件路径
+    private static final String LOG_TAG = "LogUtils"; // 日志工具类的标签
     private static volatile int currentLogLevel = Log.DEBUG; // 默认日志级别
-    private static int successCount = 0;
-    private static int failureCount = 0;
-    private static LogCallback logCallback = null;
-    private static long lastCallbackTime = 0;
+    private static int successCount = 0; // 成功记录的日志数量
+    private static int failureCount = 0; // 失败记录的日志数量
+    private static LogCallback logCallback = null; // 日志回调接口
+    private static long lastCallbackTime = 0; // 上次调用回调的时间
     private static final long CALLBACK_THROTTLE_PERIOD = 1000; // 至少每秒调用一次回调
-    private static final long LOG_RETENTION_PERIOD = 7 * 24 * 60 * 60 * 1000L; // 保留7天
-    private static final Queue<String> pendingLogs = new LinkedList<>();
+    private static final long LOG_RETENTION_PERIOD = 7 * 24 * 60 * 60 * 1000L; // 日志保留周期（7天）
+    private static final Queue<String> pendingLogs = new LinkedList<>(); // 待处理日志队列
     private static final int MAX_PENDING_LOGS = 1000; // 待处理日志的最大数量
     private static final long MAX_LOG_WRITE_DURATION = 500; // 最大日志写入耗时（毫秒）
 
     /**
      * 动态设置日志文件路径
      *
-     * @param baseDir 日志文件路径
+     * @param baseDir 日志文件的基础路径，例如："/storage/emulated/0/Android/data/com.example.myapp/files/logs/"
      */
     public static void setLogFilepath(String baseDir) {
         if (baseDir == null || baseDir.isEmpty() || baseDir.contains("..")) {
