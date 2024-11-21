@@ -3,7 +3,7 @@ package com.wty.foundation.common.utils;
 public class MapCoordinateConverter {
     private static final double A = 6378245.0; // 长半轴
     private static final double EE = 0.00669342162296594323; // 扁率
-    private static final double PI = Math.PI;
+    private static final double PI = 3.1415926535897932384626; // 更精确的圆周率值
 
     // 私有构造器防止实例化
     private MapCoordinateConverter() {}
@@ -44,6 +44,8 @@ public class MapCoordinateConverter {
     public static double[] gcj02ToWgs84(double gcjLat, double gcjLon) {
         validateCoordinates(gcjLat, gcjLon);
         if (isInChina(gcjLat, gcjLon)) {
+            double initDelta = 0.01;
+            double threshold = 0.000001;
             double dLat = transformLat(gcjLon - 105.0, gcjLat - 35.0);
             double dLon = transformLon(gcjLon - 105.0, gcjLat - 35.0);
             double radLat = gcjLat / 180.0 * PI;
@@ -52,9 +54,28 @@ public class MapCoordinateConverter {
             double sqrtMagic = Math.sqrt(magic);
             dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
             dLon = (dLon * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
+
             double wgsLat = gcjLat - dLat;
             double wgsLon = gcjLon - dLon;
-            return new double[] {wgsLat, wgsLon};
+            double deltaLat = 0;
+            double deltaLon = 0;
+
+            while (Math.abs(deltaLat) > threshold && Math.abs(deltaLon) > threshold) {
+                double tempLat = wgsLat + deltaLat;
+                double tempLon = wgsLon + deltaLon;
+                dLat = transformLat(tempLon - 105.0, tempLat - 35.0);
+                dLon = transformLon(tempLon - 105.0, tempLat - 35.0);
+                radLat = tempLat / 180.0 * PI;
+                magic = Math.sin(radLat);
+                magic = 1 - EE * magic * magic;
+                sqrtMagic = Math.sqrt(magic);
+                dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
+                dLon = (dLon * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
+                deltaLat = (gcjLat - (tempLat + dLat)) * initDelta;
+                deltaLon = (gcjLon - (tempLon + dLon)) * initDelta;
+            }
+
+            return new double[] {wgsLat + deltaLat, wgsLon + deltaLon};
         } else {
             return new double[] {gcjLat, gcjLon};
         }
