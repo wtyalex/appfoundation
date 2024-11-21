@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace 'com.wty.appfoundation.demo'
-    compileSdk 34
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.wty.appfoundation.demo"
-        minSdk 24
-        targetSdk 34
+        minSdk 21
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 

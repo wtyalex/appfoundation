@@ -130,6 +130,24 @@ public class StringUtils {
     }
 
     /**
+     * 检查给定的字符串是否可以转换为数字（整数或浮点数）
+     *
+     * @param str 要检查的字符串
+     * @return 如果字符串可以转换为数字，则返回 true；否则返回 false
+     */
+    public static boolean isNumeric(String str) {
+        if (str == null || str.isEmpty()) {
+            return false;
+        }
+        try {
+            Double.parseDouble(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    /**
      * 检查给定字符串是否不是空白
      *
      * @param str 要检查的字符串
