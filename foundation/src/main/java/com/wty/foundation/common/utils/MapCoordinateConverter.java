@@ -1,19 +1,20 @@
 package com.wty.foundation.common.utils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class MapCoordinateConverter {
     private static final String TAG = "MapCoordinateConverter";
     private static final double A = 6378245.0; // 长半轴
     private static final double EE = 0.00669342162296594323; // 扁率
-    private static final BigDecimal PI = BigDecimal.valueOf(Math.PI); // 圆周率
+    private static final double PI = 3.1415926535897932384626; // 更精确的圆周率
 
     // 私有构造器防止实例化
     private MapCoordinateConverter() {
     }
 
     /**
-     * 将 WGS84 坐标转换为 GCJ-02 坐标 
+     * 将 WGS84 坐标转换为 GCJ-02 坐标
      *
      * @param wgsLat WGS84 纬度
      * @param wgsLon WGS84 经度
@@ -22,14 +23,26 @@ public class MapCoordinateConverter {
     public static double[] wgs84ToGcj02(double wgsLat, double wgsLon) {
         validateCoordinates(wgsLat, wgsLon);
         if (isInChina(wgsLat, wgsLon)) {
-            return transformCoordinates(wgsLat, wgsLon, false);
+            double dLat = transformLat(wgsLon - 105.0, wgsLat - 35.0);
+            double dLon = transformLng(wgsLon - 105.0, wgsLat - 35.0);
+            double radLat = wgsLat / 180.0 * PI;
+            double magic = Math.sin(radLat);
+            magic = 1 - EE * magic * magic;
+            double sqrtMagic = Math.sqrt(magic);
+            dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
+            dLon = (dLon * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
+
+            // 应用四舍五入以匹配坐标变换的精度
+            double mgLat = round(wgsLat + dLat, 7);
+            double mgLon = round(wgsLon + dLon, 7);
+            return new double[]{mgLat, mgLon};
         } else {
             return new double[]{wgsLat, wgsLon};
         }
     }
 
     /**
-     * 将 GCJ-02 坐标转换为 WGS84 坐标 
+     * 将 GCJ-02 坐标转换为 WGS84 坐标
      *
      * @param gcjLat GCJ-02 纬度
      * @param gcjLon GCJ-02 经度
@@ -38,14 +51,26 @@ public class MapCoordinateConverter {
     public static double[] gcj02ToWgs84(double gcjLat, double gcjLon) {
         validateCoordinates(gcjLat, gcjLon);
         if (isInChina(gcjLat, gcjLon)) {
-            return transformCoordinates(gcjLat, gcjLon, true);
+            double dLat = transformLat(gcjLon - 105.0, gcjLat - 35.0);
+            double dLng = transformLng(gcjLon - 105.0, gcjLat - 35.0);
+            double radLat = gcjLat / 180.0 * PI;
+            double magic = Math.sin(radLat);
+            magic = 1 - EE * magic * magic;
+            double sqrtMagic = Math.sqrt(magic);
+            dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
+            dLng = (dLng * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
+
+            double mgLat = gcjLat + dLat;
+            double mgLng = gcjLon + dLng;
+
+            return new double[]{gcjLat * 2 - mgLat, gcjLon * 2 - mgLng};
         } else {
             return new double[]{gcjLat, gcjLon};
         }
     }
 
     /**
-     * 将 BD-09 坐标转换为 GCJ-02 坐标 
+     * 将 BD-09 坐标转换为 GCJ-02 坐标
      *
      * @param bdLat BD-09 纬度
      * @param bdLon BD-09 经度
@@ -55,13 +80,13 @@ public class MapCoordinateConverter {
         validateCoordinates(bdLat, bdLon);
         double x = bdLon - 0.0065;
         double y = bdLat - 0.006;
-        double z = Math.sqrt(x * x + y * y) - 0.00002 * Math.sin(y * PI.doubleValue());
-        double theta = Math.atan2(y, x) - 0.000003 * Math.cos(x * PI.doubleValue());
+        double z = Math.sqrt(x * x + y * y) - 0.00002 * Math.sin(y * PI);
+        double theta = Math.atan2(y, x) - 0.000003 * Math.cos(x * PI);
         return new double[]{z * Math.sin(theta), z * Math.cos(theta)};
     }
 
     /**
-     * 将 BD-09 坐标转换为 WGS84 坐标 
+     * 将 BD-09 坐标转换为 WGS84 坐标
      *
      * @param bdLat BD-09 纬度
      * @param bdLon BD-09 经度
@@ -73,7 +98,7 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 检查坐标是否在中国境内 
+     * 检查坐标是否在中国境内
      *
      * @param lat 纬度
      * @param lon 经度
@@ -84,93 +109,51 @@ public class MapCoordinateConverter {
     }
 
     /**
-     * 计算坐标偏移量并转换坐标 
-     *
-     * @param lat        纬度
-     * @param lon        经度
-     * @param isReversed 是否反向转换（GCJ-02 -> WGS84）
-     * @return 转换后的坐标数组 [纬度, 经度]
-     */
-    private static double[] transformCoordinates(double lat, double lon, boolean isReversed) {
-        double dLat = transformLat(lon - 105.0, lat - 35.0);
-        double dLon = transformLon(lon - 105.0, lat - 35.0);
-        double radLat = lat / 180.0 * PI.doubleValue();
-        double magic = Math.sin(radLat);
-        magic = 1 - EE * magic * magic;
-        double sqrtMagic = Math.sqrt(magic);
-
-        if (!isReversed) {
-            dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI.doubleValue());
-            dLon = (dLon * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI.doubleValue());
-            return new double[]{lat + dLat, lon + dLon};
-        } else {
-            double initDelta = 0.00001; // 更小的初始增量
-            double threshold = 0.000000001; // 更严格的阈值
-            double deltaLat = 0;
-            double deltaLon = 0;
-            double wgsLat = lat - dLat;
-            double wgsLon = lon - dLon;
-
-            while (Math.abs(deltaLat) > threshold || Math.abs(deltaLon) > threshold) {
-                double tempLat = wgsLat + deltaLat;
-                double tempLon = wgsLon + deltaLon;
-                dLat = transformLat(tempLon - 105.0, tempLat - 35.0);
-                dLon = transformLon(tempLon - 105.0, tempLat - 35.0);
-                radLat = tempLat / 180.0 * PI.doubleValue();
-                magic = Math.sin(radLat);
-                magic = 1 - EE * magic * magic;
-                sqrtMagic = Math.sqrt(magic);
-                dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI.doubleValue());
-                dLon = (dLon * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI.doubleValue());
-                deltaLat = (lat - (tempLat + dLat));
-                deltaLon = (lon - (tempLon + dLon));
-            }
-
-            return new double[]{wgsLat + deltaLat, wgsLon + deltaLon};
-        }
-    }
-
-    /**
-     * 计算纬度偏移量 
+     * 计算纬度偏移量
      *
      * @param x 经度差
      * @param y 纬度差
      * @return 纬度偏移量
      */
     private static double transformLat(double x, double y) {
-        return calculateOffset(x, y, false);
+        double ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+        ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+        ret += (20.0 * Math.sin(y * PI) + 40.0 * Math.sin(y / 3.0 * PI)) * 2.0 / 3.0;
+        ret += (160.0 * Math.sin(y / 12.0 * PI) + 320 * Math.sin(y * PI / 30.0)) * 2.0 / 3.0;
+        return ret;
     }
 
     /**
-     * 计算经度偏移量 
+     * 计算经度偏移量
      *
      * @param x 经度差
      * @param y 纬度差
      * @return 经度偏移量
      */
-    private static double transformLon(double x, double y) {
-        return calculateOffset(x, y, true);
-    }
-
-    /**
-     * 统一计算偏移量的方法 
-     *
-     * @param x           经度差
-     * @param y           纬度差
-     * @param isLongitude 是否计算经度偏移量
-     * @return 对应的偏移量
-     */
-    private static double calculateOffset(double x, double y, boolean isLongitude) {
-        double ret = isLongitude ? 300.0 : -100.0;
-        ret += 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
-        ret += (20.0 * Math.sin(6.0 * x * PI.doubleValue()) + 20.0 * Math.sin(2.0 * x * PI.doubleValue())) * 2.0 / 3.0;
-        ret += (20.0 * Math.sin(y * PI.doubleValue()) + 40.0 * Math.sin(y / 3.0 * PI.doubleValue())) * 2.0 / 3.0;
-        ret += (150.0 * Math.sin(y / 12.0 * PI.doubleValue()) + 300.0 * Math.sin(y * PI.doubleValue() / 30.0)) * 2.0 / 3.0;
+    private static double transformLng(double x, double y) {
+        double ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+        ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+        ret += (20.0 * Math.sin(x * PI) + 40.0 * Math.sin(x / 3.0 * PI)) * 2.0 / 3.0;
+        ret += (150.0 * Math.sin(x / 12.0 * PI) + 300.0 * Math.sin(x / 30.0 * PI)) * 2.0 / 3.0;
         return ret;
     }
 
     /**
-     * 验证坐标值的有效性 
+     * 四舍五入到指定的小数位数
+     *
+     * @param value  待四舍五入的值
+     * @param places 小数位数
+     * @return 四舍五入后的值
+     */
+    private static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+        BigDecimal bd = new BigDecimal(Double.toString(value));
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
+    /**
+     * 验证坐标值的有效性
      *
      * @param lat 纬度
      * @param lon 经度
