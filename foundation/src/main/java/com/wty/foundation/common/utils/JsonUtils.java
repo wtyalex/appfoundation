@@ -1,13 +1,9 @@
 package com.wty.foundation.common.utils;
 
-import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
+import android.util.Log;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -17,10 +13,14 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.internal.LinkedTreeMap;
 import com.google.gson.reflect.TypeToken;
 
-import android.util.Log;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import java.lang.reflect.Type;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Json 工具类
@@ -29,14 +29,15 @@ public class JsonUtils {
     private static final String TAG = "JsonUtils";
     private static final Gson gson = new Gson();
 
-    private JsonUtils() {}
+    private JsonUtils() {
+    }
 
     /**
      * 将JSON字符串转换为指定类型的实体对象
      *
-     * @param json JSON字符串
+     * @param json  JSON字符串
      * @param clazz 目标类的Class对象
-     * @param <T> 实体类型
+     * @param <T>   实体类型
      * @return 转换后的实体对象，如果转换失败返回null
      */
     @Nullable
@@ -57,7 +58,7 @@ public class JsonUtils {
      *
      * @param json JSON字符串
      * @param type 目标类型的TypeToken
-     * @param <T> 实体类型
+     * @param <T>  实体类型
      * @return 转换后的实体对象，如果转换失败返回null
      */
     @Nullable
@@ -77,8 +78,8 @@ public class JsonUtils {
      * 将JsonElement转换为指定类型的实体对象
      *
      * @param element JsonElement对象
-     * @param clazz 目标类的Class对象
-     * @param <T> 实体类型
+     * @param clazz   目标类的Class对象
+     * @param <T>     实体类型
      * @return 转换后的实体对象，如果转换失败返回null
      */
     @Nullable
@@ -98,8 +99,8 @@ public class JsonUtils {
      * 将JsonElement转换为指定类型的实体对象
      *
      * @param element JsonElement对象
-     * @param type 目标类型的TypeToken
-     * @param <T> 实体类型
+     * @param type    目标类型的TypeToken
+     * @param <T>     实体类型
      * @return 转换后的实体对象，如果转换失败返回null
      */
     @Nullable
@@ -130,7 +131,7 @@ public class JsonUtils {
      * 将JSON字符串转换为List<T>
      *
      * @param json JSON字符串
-     * @param <T> 集合数据类型
+     * @param <T>  集合数据类型
      * @return List<T>，如果转换失败返回空列表
      */
     @NonNull
@@ -139,7 +140,8 @@ public class JsonUtils {
             return Collections.emptyList();
         }
         try {
-            Type listType = new TypeToken<List<T>>() {}.getType();
+            Type listType = new TypeToken<List<T>>() {
+            }.getType();
             return gson.fromJson(json, listType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -152,7 +154,7 @@ public class JsonUtils {
      *
      * @param json JSON字符串
      * @param type 具体类型的TypeToken
-     * @param <T> 列表元素的类型
+     * @param <T>  列表元素的类型
      * @return List<T>，如果转换失败返回空列表
      */
     @NonNull
@@ -172,7 +174,7 @@ public class JsonUtils {
      * 将JSON字符串转换为Map<String, T>
      *
      * @param json JSON字符串
-     * @param <T> 映射值的数据类型
+     * @param <T>  映射值的数据类型
      * @return Map<String, T>，如果转换失败返回空映射
      */
     @NonNull
@@ -181,7 +183,8 @@ public class JsonUtils {
             return Collections.emptyMap();
         }
         try {
-            Type mapType = new TypeToken<Map<String, T>>() {}.getType();
+            Type mapType = new TypeToken<Map<String, T>>() {
+            }.getType();
             return gson.fromJson(json, mapType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -193,7 +196,7 @@ public class JsonUtils {
      * 将JSON字符串转换为HashMap<String, T>
      *
      * @param json JSON字符串
-     * @param <T> 映射值的数据类型
+     * @param <T>  映射值的数据类型
      * @return HashMap<String, T>，如果转换失败返回空映射
      */
     @NonNull
@@ -202,7 +205,8 @@ public class JsonUtils {
             return new HashMap<>();
         }
         try {
-            Type mapType = new TypeToken<HashMap<String, T>>() {}.getType();
+            Type mapType = new TypeToken<HashMap<String, T>>() {
+            }.getType();
             return gson.fromJson(json, mapType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -214,7 +218,7 @@ public class JsonUtils {
      * 将JSON字符串转换为LinkedHashMap<String, T>
      *
      * @param json JSON字符串
-     * @param <T> 映射值的数据类型
+     * @param <T>  映射值的数据类型
      * @return LinkedHashMap<String, T>，如果转换失败返回空映射
      */
     @NonNull
@@ -223,7 +227,8 @@ public class JsonUtils {
             return new LinkedHashMap<>();
         }
         try {
-            Type mapType = new TypeToken<LinkedHashMap<String, T>>() {}.getType();
+            Type mapType = new TypeToken<LinkedHashMap<String, T>>() {
+            }.getType();
             return gson.fromJson(json, mapType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -235,7 +240,7 @@ public class JsonUtils {
      * 将JSON字符串转换为TreeMap<String, T>
      *
      * @param json JSON字符串
-     * @param <T> 映射值的数据类型
+     * @param <T>  映射值的数据类型
      * @return TreeMap<String, T>，如果转换失败返回空映射
      */
     @NonNull
@@ -244,7 +249,8 @@ public class JsonUtils {
             return new TreeMap<>();
         }
         try {
-            Type mapType = new TypeToken<TreeMap<String, T>>() {}.getType();
+            Type mapType = new TypeToken<TreeMap<String, T>>() {
+            }.getType();
             return gson.fromJson(json, mapType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -256,7 +262,7 @@ public class JsonUtils {
      * 将JSON字符串转换为ConcurrentHashMap<String, T>
      *
      * @param json JSON字符串
-     * @param <T> 映射值的数据类型
+     * @param <T>  映射值的数据类型
      * @return ConcurrentHashMap<String, T>，如果转换失败返回空映射
      */
     @NonNull
@@ -265,7 +271,8 @@ public class JsonUtils {
             return new ConcurrentHashMap<>();
         }
         try {
-            Type mapType = new TypeToken<ConcurrentHashMap<String, T>>() {}.getType();
+            Type mapType = new TypeToken<ConcurrentHashMap<String, T>>() {
+            }.getType();
             return gson.fromJson(json, mapType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -277,7 +284,7 @@ public class JsonUtils {
      * 将JSON字符串转换为List<HashMap<String, Object>>
      *
      * @param json JSON字符串
-     * @return List<HashMap<String, Object>>，如果转换失败返回空列表
+     * @return List<HashMap < String, Object>>，如果转换失败返回空列表
      */
     @NonNull
     public static List<HashMap<String, Object>> fromJsonToListOfHashMaps(String json) {
@@ -285,7 +292,8 @@ public class JsonUtils {
             return Collections.emptyList();
         }
         try {
-            Type listType = new TypeToken<List<HashMap<String, Object>>>() {}.getType();
+            Type listType = new TypeToken<List<HashMap<String, Object>>>() {
+            }.getType();
             return gson.fromJson(json, listType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -297,7 +305,7 @@ public class JsonUtils {
      * 将JSON字符串转换为List<LinkedTreeMap<String, Object>>
      *
      * @param json JSON字符串
-     * @return List<LinkedTreeMap<String, Object>>，如果转换失败返回空列表
+     * @return List<LinkedTreeMap < String, Object>>，如果转换失败返回空列表
      */
     @NonNull
     public static List<LinkedTreeMap<String, Object>> fromJsonToListOfLinkedTreeMaps(String json) {
@@ -305,7 +313,8 @@ public class JsonUtils {
             return Collections.emptyList();
         }
         try {
-            Type listType = new TypeToken<List<LinkedTreeMap<String, Object>>>() {}.getType();
+            Type listType = new TypeToken<List<LinkedTreeMap<String, Object>>>() {
+            }.getType();
             return gson.fromJson(json, listType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -317,7 +326,7 @@ public class JsonUtils {
      * 将JSON字符串转换为List<LinkedHashMap<String, Object>>
      *
      * @param json JSON字符串
-     * @return List<LinkedHashMap<String, Object>>，如果转换失败返回空列表
+     * @return List<LinkedHashMap < String, Object>>，如果转换失败返回空列表
      */
     @NonNull
     public static List<LinkedHashMap<String, Object>> fromJsonToListOfLinkedHashMaps(String json) {
@@ -325,7 +334,8 @@ public class JsonUtils {
             return Collections.emptyList();
         }
         try {
-            Type listType = new TypeToken<List<LinkedHashMap<String, Object>>>() {}.getType();
+            Type listType = new TypeToken<List<LinkedHashMap<String, Object>>>() {
+            }.getType();
             return gson.fromJson(json, listType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -337,7 +347,7 @@ public class JsonUtils {
      * 将JSON字符串转换为List<TreeMap<String, Object>>
      *
      * @param json JSON字符串
-     * @return List<TreeMap<String, Object>>，如果转换失败返回空列表
+     * @return List<TreeMap < String, Object>>，如果转换失败返回空列表
      */
     @NonNull
     public static List<TreeMap<String, Object>> fromJsonToListOfTreeMaps(String json) {
@@ -345,7 +355,8 @@ public class JsonUtils {
             return Collections.emptyList();
         }
         try {
-            Type listType = new TypeToken<List<TreeMap<String, Object>>>() {}.getType();
+            Type listType = new TypeToken<List<TreeMap<String, Object>>>() {
+            }.getType();
             return gson.fromJson(json, listType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));
@@ -357,7 +368,7 @@ public class JsonUtils {
      * 将JSON字符串转换为List<ConcurrentHashMap<String, Object>>
      *
      * @param json JSON字符串
-     * @return List<ConcurrentHashMap<String, Object>>，如果转换失败返回空列表
+     * @return List<ConcurrentHashMap < String, Object>>，如果转换失败返回空列表
      */
     @NonNull
     public static List<ConcurrentHashMap<String, Object>> fromJsonToListOfConcurrentHashMaps(String json) {
@@ -365,7 +376,8 @@ public class JsonUtils {
             return Collections.emptyList();
         }
         try {
-            Type listType = new TypeToken<List<ConcurrentHashMap<String, Object>>>() {}.getType();
+            Type listType = new TypeToken<List<ConcurrentHashMap<String, Object>>>() {
+            }.getType();
             return gson.fromJson(json, listType);
         } catch (JsonSyntaxException e) {
             Log.e(TAG, Log.getStackTraceString(e));

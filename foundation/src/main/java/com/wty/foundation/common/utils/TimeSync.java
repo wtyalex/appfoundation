@@ -1,17 +1,16 @@
 package com.wty.foundation.common.utils;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-
 import android.os.SystemClock;
+
+import java.util.Date;
 
 public class TimeSync {
 
     private static long differ;
     private static boolean isSync;
 
-    private TimeSync() {}
+    private TimeSync() {
+    }
 
     /**
      * 重置时间同步状态
@@ -133,33 +132,11 @@ public class TimeSync {
     }
 
     /**
-     * 获取当前时间戳与指定时间戳之间的差值
-     *
-     * @param timestamp 指定时间戳
-     * @return 差值（毫秒）
-     */
-    public static long getTimeDifference(long timestamp) {
-        return Math.abs(System.currentTimeMillis() - timestamp);
-    }
-
-    /**
      * 手动设置时间差
      *
      * @param difference 时间差（毫秒）
      */
     public static void setDifference(long difference) {
         differ = difference;
-    }
-
-    /**
-     * 格式化时间戳为指定格式的字符串
-     *
-     * @param timestamp 时间戳
-     * @param format 日期时间格式
-     * @return 格式化的字符串
-     */
-    public static String formatTimestamp(long timestamp, String format) {
-        SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.getDefault());
-        return sdf.format(new Date(timestamp));
     }
 }

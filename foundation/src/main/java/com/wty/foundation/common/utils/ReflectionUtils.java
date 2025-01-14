@@ -1,12 +1,12 @@
 package com.wty.foundation.common.utils;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.ViewModel;
+
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
 public class ReflectionUtils {
     // 私有构造函数防止外部实例化

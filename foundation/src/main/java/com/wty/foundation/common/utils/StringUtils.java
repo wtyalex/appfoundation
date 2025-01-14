@@ -1,11 +1,14 @@
 package com.wty.foundation.common.utils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Pattern;
+import android.telephony.PhoneNumberUtils;
+import android.util.Patterns;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
 
 public class StringUtils {
 
@@ -130,21 +133,20 @@ public class StringUtils {
     }
 
     /**
-     * 检查给定的字符串是否可以转换为数字（整数或浮点数）
+     * 校验输入的字符串是否为有效的电话号码，并且符合中国大陆手机号的格式 
      *
-     * @param str 要检查的字符串
-     * @return 如果字符串可以转换为数字，则返回 true；否则返回 false
+     * @param phoneNumber 要校验的电话号码字符串
+     * @return 如果电话号码格式正确并且有效返回true，否则返回false
      */
-    public static boolean isNumeric(String str) {
-        if (str == null || str.isEmpty()) {
+    public static boolean isValidPhoneNumberAdvanced(String phoneNumber) {
+        // 首先检查是否为空或不符合一般电话号码格式
+        if (isNullEmpty(phoneNumber) || !Patterns.PHONE.matcher(phoneNumber).matches()) {
             return false;
         }
-        try {
-            Double.parseDouble(str);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        // 然后检查是否为有效的手机号长度和格式
+        return PhoneNumberUtils.isGlobalPhoneNumber(phoneNumber) &&
+        // 进一步确保是中国大陆手机号（可选）
+            phoneNumber.startsWith("1") && phoneNumber.length() == 11;
     }
 
     /**

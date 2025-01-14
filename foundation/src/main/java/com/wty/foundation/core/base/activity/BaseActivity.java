@@ -1,9 +1,5 @@
 package com.wty.foundation.core.base.activity;
 
-import com.wty.foundation.common.utils.ScreenUtils;
-import com.wty.foundation.core.base.dialog.LoadDialog;
-import com.wty.foundation.core.utils.ResourceSetting;
-
 import android.content.Context;
 import android.content.res.Resources;
 import android.os.Bundle;
@@ -18,6 +14,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 
+import com.wty.foundation.common.utils.StatusBarUtils;
+import com.wty.foundation.core.base.dialog.LoadDialog;
+import com.wty.foundation.core.utils.ResourceSetting;
+
 public abstract class BaseActivity extends AppCompatActivity implements View.OnClickListener {
     private static final String LOADING_DIALOG = "loading_dialog";
     private LoadDialog mLoadDialog;
@@ -28,7 +28,7 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
         setStatusBarStyle();
         Fragment loadDialog = getSupportFragmentManager().findFragmentByTag(LOADING_DIALOG);
         if (loadDialog instanceof DialogFragment) {
-            mLoadDialog = (LoadDialog)loadDialog;
+            mLoadDialog = (LoadDialog) loadDialog;
         }
     }
 
@@ -44,7 +44,8 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
     }
 
     @Override
-    public void onClick(View view) {}
+    public void onClick(View view) {
+    }
 
     @Override
     protected void onDestroy() {
@@ -53,7 +54,7 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
     }
 
     protected void setStatusBarStyle() {
-        ScreenUtils.setStatusBar(this, true, false, 0, true);
+        StatusBarUtils.setStatusBar(this, true, false, 0, true);
     }
 
     /**
@@ -81,7 +82,7 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
     /**
      * 根据传入控件的坐标和用户的焦点坐标，判断是否隐藏键盘，如果点击的位置在控件内，则不隐藏键盘
      *
-     * @param view 控件view
+     * @param view  控件view
      * @param event 焦点位置
      * @return 是否隐藏
      */
@@ -91,14 +92,14 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
                 int[] location = {0, 0};
                 view.getLocationInWindow(location);
                 int left = location[0], top = location[1], right = left + view.getWidth(),
-                    bootom = top + view.getHeight();
+                        bootom = top + view.getHeight();
                 // （判断是不是EditText获得焦点）判断焦点位置坐标是否在控件所在区域内，如果位置在控件区域外，则隐藏键盘
                 if (event.getRawX() < left || event.getRawX() > right || event.getY() < top
-                    || event.getRawY() > bootom) {
+                        || event.getRawY() > bootom) {
                     // 隐藏键盘
                     IBinder token = view.getWindowToken();
                     InputMethodManager inputMethodManager =
-                        (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                            (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                     inputMethodManager.hideSoftInputFromWindow(token, InputMethodManager.HIDE_NOT_ALWAYS);
                 }
             }

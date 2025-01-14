@@ -6,49 +6,40 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-import android.util.Log;
-
 public class TimeUtils {
 
     public static final String YYYY_MM_DD = "yyyy-MM-dd";
     public static final String HH_MM = "HH:mm";
     public static final String HH_MM_SS = "HH:mm:ss";
     public static final String YYYY_MM_DD_HH_MM = "yyyy-MM-dd HH:mm";
+    public static final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
-    private TimeUtils() {}
-
-    /**
-     * 将毫秒值转换为指定格式的字符串
-     *
-     * @param millis 毫秒值
-     * @param format 日期时间格式
-     * @return 格式化后的字符串
-     */
-    public static String time2Str(long millis, String format) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(millis);
-        SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.getDefault());
-        return sdf.format(calendar.getTime());
+    private TimeUtils() {
     }
 
     /**
-     * 将Calendar对象转换为指定格式的字符串
+     * 将时间转换为指定格式的字符串
      *
-     * @param calendar Calendar对象
+     * @param time   时间对象 (Date 或 Calendar) 或者 毫秒值
      * @param format 日期时间格式
      * @return 格式化后的字符串
      */
-    public static String time2Str(Calendar calendar, String format) {
+    public static String time2Str(Object time, String format) {
         SimpleDateFormat sdf = new SimpleDateFormat(format, Locale.getDefault());
-        return sdf.format(calendar.getTime());
+        if (time instanceof Date) {
+            return sdf.format((Date) time);
+        } else if (time instanceof Calendar) {
+            return sdf.format(((Calendar) time).getTime());
+        } else if (time instanceof Long) {
+            return sdf.format(new Date((Long) time));
+        }
+        throw new IllegalArgumentException("Unsupported time object type");
     }
 
     /**
      * 将字符串时间解析为毫秒值
      *
-     * 此方法尝试将给定的字符串时间按照指定的日期时间格式解析为毫秒值 如果解析失败，则打印异常信息并返回 0
-     *
-     * @param time 字符串时间
+     * @param time   字符串时间
      * @param format 日期时间格式
      * @return 解析出的毫秒值；如果解析失败则返回 0
      */
@@ -64,16 +55,6 @@ public class TimeUtils {
     }
 
     /**
-     * 格式化当前时间为指定格式的字符串
-     *
-     * @param format 日期时间格式
-     * @return 格式化后的字符串
-     */
-    public static String getCurrentTimeStr(String format) {
-        return time2Str(System.currentTimeMillis(), format);
-    }
-
-    /**
      * 获取当前时间的毫秒值
      *
      * @return 当前时间的毫秒值
@@ -83,28 +64,10 @@ public class TimeUtils {
     }
 
     /**
-     * 获取当前时间的Calendar对象
-     *
-     * @return 当前时间的Calendar对象
-     */
-    public static Calendar getCurrentCalendar() {
-        return Calendar.getInstance();
-    }
-
-    /**
-     * 获取当前时间的Date对象
-     *
-     * @return 当前时间的Date对象
-     */
-    public static Date getCurrentDate() {
-        return new Date();
-    }
-
-    /**
      * 计算两个时间戳之间的差值（毫秒）
      *
      * @param startTime 开始时间（毫秒）
-     * @param endTime 结束时间（毫秒）
+     * @param endTime   结束时间（毫秒）
      * @return 时间差（毫秒）
      */
     public static long calculateTimeDifference(long startTime, long endTime) {
@@ -115,12 +78,32 @@ public class TimeUtils {
      * 判断给定的时间是否在指定的时间范围内
      *
      * @param currentTime 当前时间（毫秒）
-     * @param startTime 开始时间（毫秒）
-     * @param endTime 结束时间（毫秒）
+     * @param startTime   开始时间（毫秒）
+     * @param endTime     结束时间（毫秒）
      * @return 是否在时间范围内
      */
     public static boolean isInTimeRange(long currentTime, long startTime, long endTime) {
         return currentTime >= startTime && currentTime <= endTime;
+    }
+
+    /**
+     * 设置给定日期的时间字段
+     *
+     * @param date        给定的日期
+     * @param hourOfDay   小时
+     * @param minute      分钟
+     * @param second      秒
+     * @param millisecond 毫秒
+     * @return 设置后的时间戳（毫秒）
+     */
+    private static long setTimeFields(Date date, int hourOfDay, int minute, int second, int millisecond) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+        calendar.set(Calendar.MINUTE, minute);
+        calendar.set(Calendar.SECOND, second);
+        calendar.set(Calendar.MILLISECOND, millisecond);
+        return calendar.getTimeInMillis();
     }
 
     /**
@@ -130,13 +113,7 @@ public class TimeUtils {
      * @return 开始时间（毫秒）
      */
     public static long getStartOfDay(Date date) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTimeInMillis();
+        return setTimeFields(date, 0, 0, 0, 0);
     }
 
     /**
@@ -146,13 +123,7 @@ public class TimeUtils {
      * @return 结束时间（毫秒）
      */
     public static long getEndOfDay(Date date) {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        calendar.set(Calendar.HOUR_OF_DAY, 23);
-        calendar.set(Calendar.MINUTE, 59);
-        calendar.set(Calendar.SECOND, 59);
-        calendar.set(Calendar.MILLISECOND, 999);
-        return calendar.getTimeInMillis();
+        return setTimeFields(date, 23, 59, 59, 999);
     }
 
     /**
@@ -165,11 +136,7 @@ public class TimeUtils {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
         calendar.set(Calendar.DAY_OF_MONTH, 1);
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        return calendar.getTimeInMillis();
+        return setTimeFields(calendar.getTime(), 0, 0, 0, 0);
     }
 
     /**
@@ -182,11 +149,7 @@ public class TimeUtils {
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
         calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
-        calendar.set(Calendar.HOUR_OF_DAY, 23);
-        calendar.set(Calendar.MINUTE, 59);
-        calendar.set(Calendar.SECOND, 59);
-        calendar.set(Calendar.MILLISECOND, 999);
-        return calendar.getTimeInMillis();
+        return setTimeFields(calendar.getTime(), 23, 59, 59, 999);
     }
 
     /**
@@ -196,17 +159,28 @@ public class TimeUtils {
      * @return 北京时间（GMT+8）的时间戳（毫秒），如果解析失败则返回 0
      */
     public static long gmt2Date(String dateStr) {
-        SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
-        try {
-            Date date = sdf.parse(dateStr);
-            System.out.println("GMT+8 Date格式：" + date);
+        // 使用 str2Millis 处理
+        return str2Millis(dateStr, "EEE, dd MMM yyyy HH:mm:ss z");
+    }
 
-            long time = date.getTime();
-            System.out.println("GMT+8 时间戳：" + time);
-            return time;
-        } catch (ParseException e) {
-            Log.e("TimeUtils", Log.getStackTraceString(e));
-        }
-        return 0;
+    /**
+     * 格式化时间戳为指定格式的字符串
+     *
+     * @param timestamp 时间戳
+     * @param format    日期时间格式
+     * @return 格式化的字符串
+     */
+    public static String formatTimestamp(long timestamp, String format) {
+        return time2Str(timestamp, format);
+    }
+
+    /**
+     * 获取当前时间戳与指定时间戳之间的差值
+     *
+     * @param timestamp 指定时间戳
+     * @return 差值（毫秒）
+     */
+    public static long getTimeDifference(long timestamp) {
+        return calculateTimeDifference(System.currentTimeMillis(), timestamp);
     }
 }

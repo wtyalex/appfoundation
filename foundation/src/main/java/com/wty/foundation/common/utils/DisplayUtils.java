@@ -1,133 +1,114 @@
 package com.wty.foundation.common.utils;
 
+import android.content.Context;
+import android.util.Log;
+import android.util.TypedValue;
+
 import com.wty.foundation.common.init.AppContext;
 
-import android.content.Context;
-import android.graphics.Point;
-import android.util.DisplayMetrics;
-import android.view.Display;
-import android.view.WindowManager;
 
 public class DisplayUtils {
+    private static final String TAG = "DisplayUtils";
 
     // 私有构造函数，禁止实例化
-    private DisplayUtils() {}
-
-    /**
-     * 将 dp 值转换为 px 值，保证尺寸大小不变
-     *
-     * @param dpValue dp 值
-     * @return 转换后的 px 值
-     */
-    public static int dpToPx(float dpValue) {
-        final float scale = AppContext.getInstance().getContext().getResources().getDisplayMetrics().density;
-        return (int)(dpValue * scale + 0.5f);
+    private DisplayUtils() {
     }
 
     /**
-     * 将 px 值转换为 dp 值，保证尺寸大小不变
+     * 获取全局上下文
      *
-     * @param pxValue px 值
-     * @return 转换后的 dp 值
+     * @return 应用程序的全局上下文对象
      */
-    public static int pxToDp(float pxValue) {
-        final float scale = AppContext.getInstance().getContext().getResources().getDisplayMetrics().density;
-        return (int)(pxValue / scale + 0.5f);
-    }
-
-    /**
-     * 将 sp 值转换为 px 值，保证文字大小不变
-     *
-     * @param spValue sp 值
-     * @return 转换后的 px 值
-     */
-    public static int spToPx(float spValue) {
-        final float fontScale = AppContext.getInstance().getContext().getResources().getDisplayMetrics().scaledDensity;
-        return (int)(spValue * fontScale + 0.5f);
-    }
-
-    /**
-     * 将 px 值转换为 sp 值，保证文字大小不变
-     *
-     * @param pxValue px 值
-     * @return 转换后的 sp 值
-     */
-    public static int pxToSp(float pxValue) {
-        final float fontScale = AppContext.getInstance().getContext().getResources().getDisplayMetrics().scaledDensity;
-        return (int)(pxValue / fontScale + 0.5f);
-    }
-
-    /**
-     * 获取屏幕宽度（以 dp 为单位）
-     *
-     * @return 屏幕宽度（dp）
-     */
-    public static int getScreenWidthInDp() {
-        DisplayMetrics displayMetrics = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return (int)(displayMetrics.widthPixels / displayMetrics.density + 0.5f);
-    }
-
-    /**
-     * 获取屏幕高度（以 dp 为单位）
-     *
-     * @return 屏幕高度（dp）
-     */
-    public static int getScreenHeightInDp() {
-        DisplayMetrics displayMetrics = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return (int)(displayMetrics.heightPixels / displayMetrics.density + 0.5f);
-    }
-
-    /**
-     * 获取屏幕宽度（以像素为单位）
-     *
-     * @return 屏幕宽度（像素）
-     */
-    public static int getScreenWidthInPx() {
-        DisplayMetrics displayMetrics = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return displayMetrics.widthPixels;
-    }
-
-    /**
-     * 获取屏幕高度（以像素为单位）
-     *
-     * @return 屏幕高度（像素）
-     */
-    public static int getScreenHeightInPx() {
-        DisplayMetrics displayMetrics = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return displayMetrics.heightPixels;
+    private static Context getContext() {
+        Context context = AppContext.getInstance().getContext();
+        if (context == null) {
+            Log.e(TAG, "Context is null");
+        }
+        return context;
     }
 
     /**
      * 获取屏幕密度
      *
-     * @return 屏幕密度
+     * @return 屏幕密度，默认值为1.0
      */
-    public static float getScreenDensity() {
-        DisplayMetrics displayMetrics = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return displayMetrics.density;
+    private static float getDensity() {
+        Context context = getContext();
+        if (context == null) {
+            return 1.0f;
+        }
+        return context.getResources().getDisplayMetrics().density;
     }
 
     /**
-     * 获取屏幕密度 DPI
+     * 获取缩放后的屏幕密度
      *
-     * @return 屏幕密度 DPI
+     * @return 缩放后的屏幕密度，默认值为1.0
      */
-    public static int getScreenDensityDpi() {
-        DisplayMetrics displayMetrics = AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-        return displayMetrics.densityDpi;
+    private static float getScaledDensity() {
+        Context context = getContext();
+        if (context == null) {
+            return 1.0f;
+        }
+        return context.getResources().getDisplayMetrics().scaledDensity;
     }
 
     /**
-     * 获取屏幕分辨率（宽 x 高）
+     * 将 dp 转换为 px
      *
-     * @return 分辨率字符串（例如 "1920x1080"）
+     * @param dpValue 需转换的 dp 值
+     * @return 对应的 px 值
      */
-    public static String getScreenResolution() {
-        WindowManager windowManager =
-            (WindowManager)AppContext.getInstance().getContext().getSystemService(Context.WINDOW_SERVICE);
-        Display display = windowManager.getDefaultDisplay();
-        Point size = new Point();
-        display.getSize(size);
-        return size.x + "x" + size.y;
+    public static float dpToPx(float dpValue) {
+        float density = getDensity();
+        return dpValue * density;
+    }
+
+    /**
+     * 将 px 转换为 dp
+     *
+     * @param pxValue 需转换的 px 值
+     * @return 对应的 dp 值
+     */
+    public static float pxToDp(float pxValue) {
+        float density = getDensity();
+        return pxValue / density;
+    }
+
+    /**
+     * 将 sp 转换为 px
+     *
+     * @param spValue 需转换的 sp 值
+     * @return 对应的 px 值
+     */
+    public static float spToPx(float spValue) {
+        float scaledDensity = getScaledDensity();
+        return spValue * scaledDensity;
+    }
+
+    /**
+     * 将 px 转换为 sp
+     *
+     * @param pxValue 需转换的 px 值
+     * @return 对应的 sp 值
+     */
+    public static float pxToSp(float pxValue) {
+        float scaledDensity = getScaledDensity();
+        return pxValue / scaledDensity;
+    }
+
+    /**
+     * 根据单位将 dp 或 sp 转换为 px
+     *
+     * @param value 单位值
+     * @param unit  单位（TypedValue.COMPLEX_UNIT_DIP 或 TypedValue.COMPLEX_UNIT_SP）
+     * @return 对应的 px 值
+     */
+    public static float convertToPx(float value, int unit) {
+        Context context = getContext();
+        if (context == null) {
+            return 0;
+        }
+        return TypedValue.applyDimension(unit, value, context.getResources().getDisplayMetrics());
     }
 }
