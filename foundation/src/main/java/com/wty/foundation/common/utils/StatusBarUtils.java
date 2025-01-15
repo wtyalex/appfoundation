@@ -12,6 +12,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
+import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
@@ -36,31 +37,29 @@ public class StatusBarUtils {
      *
      * @param activity Activity实例，用于获取窗口和装饰视图
      */
-    public static void setTranslucentStatusBar(@NonNull Activity activity) {
+    public static void setImmersiveStatusBar(@NonNull Activity activity) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                setStatusBarInternal(activity, true, Color.TRANSPARENT, false);
+                Window window = activity.getWindow();
+                if (window == null) {
+                    return;
+                }
+                View decorView = window.getDecorView();
+                // 设置透明状态栏并使内容延伸到状态栏下方
+                window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+                window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+                window.setStatusBarColor(Color.TRANSPARENT);
+
+                // 确保布局能够延伸到状态栏下方，并使用浅色图标
+                int uiOptions = SYSTEM_UI_FLAG_LAYOUT_STABLE | SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                decorView.setSystemUiVisibility(uiOptions);
+                // 禁用 fitsSystemWindows 以允许内容延伸到状态栏下方
+                ViewCompat.setFitsSystemWindows(decorView, false);
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 setTranslucentStatusFlag(activity.getWindow(), true);
             }
         } catch (Exception e) {
             Log.e(TAG, "设置沉浸式状态栏失败", e);
-        }
-    }
-
-    /**
-     * 设置普通状态栏颜色
-     *
-     * @param activity       Activity实例，用于获取窗口
-     * @param statusBarColor 状态栏的颜色（ARGB格式）
-     */
-    public static void setNormalStatusBar(@NonNull Activity activity, @ColorInt int statusBarColor) {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                setStatusBarInternal(activity, false, statusBarColor, false);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "设置普通状态栏颜色失败", e);
         }
     }
 
@@ -94,18 +93,18 @@ public class StatusBarUtils {
     }
 
     /**
-     * 动态设置状态栏颜色
+     * 设置状态栏颜色
      *
      * @param activity Activity实例，用于获取窗口
      * @param color    状态栏颜色（ARGB格式）
      */
-    public static void setDynamicStatusBarColor(@NonNull Activity activity, @ColorInt int color) {
+    public static void setStatusBarColor(@NonNull Activity activity, @ColorInt int color) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 setStatusBarInternal(activity, false, color, false);
             }
         } catch (Exception e) {
-            Log.e(TAG, "动态设置状态栏颜色失败", e);
+            Log.e(TAG, "设置状态栏颜色失败", e);
         }
     }
 
@@ -227,7 +226,7 @@ public class StatusBarUtils {
     private static void setDarkIconsInternal(@NonNull View decorView, boolean darkIcons) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             int uiOptions = decorView.getSystemUiVisibility();
-            decorView.setSystemUiVisibility(darkIcons ? uiOptions & ~SYSTEM_UI_FLAG_LIGHT_STATUS_BAR : uiOptions | SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            decorView.setSystemUiVisibility(darkIcons ? (uiOptions & ~SYSTEM_UI_FLAG_LIGHT_STATUS_BAR) : (uiOptions | SYSTEM_UI_FLAG_LIGHT_STATUS_BAR));
         }
     }
 
