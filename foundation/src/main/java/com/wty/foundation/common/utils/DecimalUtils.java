@@ -16,7 +16,6 @@ import java.util.Random;
 public class DecimalUtils {
 
     private static final String TAG = "DecimalUtils";
-    private static final int DEFAULT_DECIMAL_PLACES = 2;
 
     // 私有构造函数，防止外部实例化
     private DecimalUtils() {

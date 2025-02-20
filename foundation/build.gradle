@@ -59,4 +59,7 @@ dependencies {
     api 'io.reactivex.rxjava3:rxandroid:3.0.2'
     //让Retrofit支持Rxjava2
     api 'com.squareup.retrofit2:adapter-rxjava3:2.9.0'
+    // Zxing
+    api 'com.google.zxing:core:3.4.1'
+    api 'com.journeyapps:zxing-android-embedded:3.6.0'
 }
