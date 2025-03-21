@@ -1,5 +1,7 @@
 package com.wty.foundation.common.utils;
 
+import android.util.Log;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -12,20 +14,21 @@ import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
 public class DateUtils {
-
+    private static final String TAG = "DateUtils";
     private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
     private static final String DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
     private static final String FRIENDLY_DATE_FORMAT = "dd/MM/yyyy HH:mm";
 
     // 私有构造函数防止外部实例化
-    private DateUtils() {}
+    private DateUtils() {
+    }
 
     /**
      * 将日期转换为字符串形式
      *
-     * @param date 日期
+     * @param date    日期
      * @param pattern 日期格式
-     * @param locale 地区设置
+     * @param locale  地区设置
      * @return 日期字符串
      */
     public static String format(Date date, String pattern, Locale locale) {
@@ -36,7 +39,7 @@ public class DateUtils {
     /**
      * 使用默认地区设置格式化日期
      *
-     * @param date 日期
+     * @param date    日期
      * @param pattern 日期格式
      * @return 日期字符串
      */
@@ -48,7 +51,7 @@ public class DateUtils {
      * 解析日期字符串为日期对象.
      *
      * @param dateString 日期字符串
-     * @param pattern 字符串的日期格式模板
+     * @param pattern    字符串的日期格式模板
      * @return 解析得到的日期对象
      * @throws ParseException 如果解析失败
      */
@@ -174,7 +177,7 @@ public class DateUtils {
 
     /**
      * 使用默认地区设置格式化日期为友好的字符串形式，并提供一种更易读的时间描述
-     *
+     * <p>
      * 此方法根据给定日期与当前日期之间的差异，返回一个更易读的时间描述 时间描述根据以下规则生成： - 如果小于一分钟，则返回 "X 秒前" - 如果小于一小时，则返回 "X 分钟前" - 如果小于一天，则返回 "X 小时前" -
      * 如果小于一周，则返回 "X 天前" - 如果小于一个月，则返回 "X 周前" - 如果小于一年，则返回 "X 月前" - 如果超过一年，则返回 "dd/MM/yyyy HH:mm" 格式的日期时间
      *
@@ -220,17 +223,24 @@ public class DateUtils {
      * 生成一个在指定范围内的随机日期
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @return 随机日期
+     * @param endDate   结束日期
+     * @return 随机日期；如果开始日期晚于结束日期，则返回开始日期
      */
     public static Date generateRandomDate(Date startDate, Date endDate) {
+        if (startDate == null || endDate == null) {
+            Log.e(TAG, "输入的日期不能为空");
+            return startDate != null ? startDate : endDate;
+        }
+
+        // 检查开始日期是否在结束日期之后
         if (startDate.after(endDate)) {
-            throw new IllegalArgumentException("Start date must be before end date.");
+            Log.e(TAG, "开始日期必须在结束日期之前");
+            return startDate;
         }
 
         long startMillis = startDate.getTime();
         long endMillis = endDate.getTime();
-        long randomMillis = startMillis + (long)(Math.random() * (endMillis - startMillis));
+        long randomMillis = startMillis + (long) (Math.random() * (endMillis - startMillis));
 
         return new Date(randomMillis);
     }
@@ -239,7 +249,7 @@ public class DateUtils {
      * 返回一个列表，包含开始日期和结束日期之间的所有年份
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 年份列表
      */
     public static List<Integer> getYearsBetweenDates(Date startDate, Date endDate) {
@@ -260,7 +270,7 @@ public class DateUtils {
      * 返回一个列表，包含开始日期和结束日期之间的所有月份
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 月份列表
      */
     public static List<String> getMonthsBetweenDates(Date startDate, Date endDate) {
@@ -281,7 +291,7 @@ public class DateUtils {
      * 返回一个列表，包含开始日期和结束日期之间的所有日期
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 日期列表
      */
     public static List<Date> getDaysBetweenDates(Date startDate, Date endDate) {
@@ -302,7 +312,7 @@ public class DateUtils {
      * 返回一个列表，包含开始日期和结束日期之间的所有小时
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 小时列表
      */
     public static List<Date> getHoursBetweenDates(Date startDate, Date endDate) {
@@ -323,7 +333,7 @@ public class DateUtils {
      * 返回一个列表，包含开始日期和结束日期之间的所有分钟
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 分钟列表
      */
     public static List<Date> getMinutesBetweenDates(Date startDate, Date endDate) {
@@ -345,7 +355,7 @@ public class DateUtils {
      * 返回一个列表，包含开始日期和结束日期之间的所有秒
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 秒列表
      */
     public static List<Date> getSecondsBetweenDates(Date startDate, Date endDate) {
@@ -366,10 +376,10 @@ public class DateUtils {
     /**
      * 返回一个列表，包含开始日期和结束日期之间按指定时间间隔的时间戳
      *
-     * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param startDate    开始日期
+     * @param endDate      结束日期
      * @param intervalTime 单位时间内的时间间隔
-     * @param unit 时间间隔的单位（如：TimeUnit.MINUTES）
+     * @param unit         时间间隔的单位（如：TimeUnit.MINUTES）
      * @return 时间戳列表
      */
     public static List<Long> getTimestampsBetweenDates(Date startDate, Date endDate, long intervalTime, TimeUnit unit) {
@@ -391,7 +401,7 @@ public class DateUtils {
      * 返回一个列表，包含开始日期和结束日期之间的所有日期（字符串形式）
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 日期字符串列表
      */
     public static List<String> getDatesBetweenDates(Date startDate, Date endDate) {
@@ -411,7 +421,7 @@ public class DateUtils {
     /**
      * 获取指定月份的最大天数
      *
-     * @param year 年份
+     * @param year  年份
      * @param month 月份
      * @return 该月的最大天数
      */
@@ -461,7 +471,7 @@ public class DateUtils {
     /**
      * 将日期转换为字符串形式（格式：yyyy-MM-dd）
      *
-     * @param date 日期
+     * @param date   日期
      * @param locale 地区设置
      * @return 日期字符串
      */
@@ -472,7 +482,7 @@ public class DateUtils {
     /**
      * 将日期转换为字符串形式（格式：yyyy-MM-dd HH:mm:ss）
      *
-     * @param date 日期
+     * @param date   日期
      * @param locale 地区设置
      * @return 日期字符串
      */
@@ -484,7 +494,7 @@ public class DateUtils {
      * 将字符串转换为日期对象（格式：yyyy-MM-dd）
      *
      * @param dateString 日期字符串
-     * @param locale 地区设置
+     * @param locale     地区设置
      * @return 日期对象
      * @throws ParseException 如果字符串无法被解析
      */
@@ -497,7 +507,7 @@ public class DateUtils {
      * 将字符串转换为日期对象（格式：yyyy-MM-dd HH:mm:ss）
      *
      * @param dateString 时间字符串
-     * @param locale 地区设置
+     * @param locale     地区设置
      * @return 日期对象
      * @throws ParseException 如果字符串无法被解析
      */
@@ -510,7 +520,7 @@ public class DateUtils {
      * 将时间戳转换为日期时间字符串.
      *
      * @param timestamp 时间戳
-     * @param pattern 日期时间格式模板
+     * @param pattern   日期时间格式模板
      * @return 格式化后的日期时间字符串
      */
     public static String timestampToString(long timestamp, String pattern) {
@@ -522,7 +532,7 @@ public class DateUtils {
      * 将日期时间字符串转换为时间戳.
      *
      * @param dateString 日期时间字符串
-     * @param pattern 字符串的日期时间格式模板
+     * @param pattern    字符串的日期时间格式模板
      * @return 转换后的时间戳
      * @throws ParseException 如果解析失败
      */
@@ -535,7 +545,7 @@ public class DateUtils {
      * 计算两个日期之间的差值（天数）.
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
+     * @param endDate   结束日期
      * @return 两个日期之间的天数差
      */
     public static long differenceBetweenDates(Date startDate, Date endDate) {
@@ -616,9 +626,9 @@ public class DateUtils {
     /**
      * 对指定日期进行加或减操作
      *
-     * @param date 日期
+     * @param date   日期
      * @param amount 加减的数量
-     * @param field Calendar字段（如 Calendar.DAY_OF_MONTH）
+     * @param field  Calendar字段（如 Calendar.DAY_OF_MONTH）
      * @return 新的日期对象
      */
     public static Date addOrSubtract(Date date, int amount, int field) {
@@ -711,36 +721,41 @@ public class DateUtils {
         cal1.setTime(date1);
         Calendar cal2 = Calendar.getInstance();
         cal2.setTime(date2);
-        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR)
-            && cal1.get(Calendar.MONTH) == cal2.get(Calendar.MONTH)
-            && cal1.get(Calendar.DAY_OF_MONTH) == cal2.get(Calendar.DAY_OF_MONTH);
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) && cal1.get(Calendar.MONTH) == cal2.get(Calendar.MONTH) && cal1.get(Calendar.DAY_OF_MONTH) == cal2.get(Calendar.DAY_OF_MONTH);
     }
 
     /**
      * 将日期从一个时区转换到另一个时区
      *
-     * @param date 要转换的日期
+     * @param date         要转换的日期
      * @param fromTimeZone 日期当前所在的时区（如 "America/New_York"）
-     * @param toTimeZone 转换目标的时区（如 "Asia/Shanghai"）
-     * @return 转换后的日期
-     * @throws IllegalArgumentException 如果时区无效
+     * @param toTimeZone   转换目标的时区（如 "Asia/Shanghai"）
+     * @return 转换后的日期；如果时区无效或发生其他错误，则返回原始日期
      */
     public static Date convertTimeZone(Date date, String fromTimeZone, String toTimeZone) {
+        if (date == null || fromTimeZone == null || toTimeZone == null) {
+            Log.e(TAG, "输入参数不能为空");
+            return date;
+        }
+
         SimpleDateFormat sdf = new SimpleDateFormat(DEFAULT_DATETIME_FORMAT, Locale.getDefault());
         TimeZone fromTz = TimeZone.getTimeZone(fromTimeZone);
         TimeZone toTz = TimeZone.getTimeZone(toTimeZone);
 
-        if (fromTz.getID().equals("GMT") || toTz.getID().equals("GMT")) {
-            throw new IllegalArgumentException("Invalid time zone: " + fromTimeZone + " or " + toTimeZone);
+        // 检查时区是否为GMT，如果是则认为是无效的时区ID（除了实际需要GMT的情况）
+        if ("GMT".equals(fromTimeZone) && !"GMT".equals(toTimeZone) || "GMT".equals(toTimeZone) && !"GMT".equals(fromTimeZone)) {
+            Log.e(TAG, "无效的时区: " + fromTimeZone + " 或 " + toTimeZone);
+            return date;
         }
 
-        sdf.setTimeZone(fromTz);
-        String dateStr = sdf.format(date);
-        sdf.setTimeZone(toTz);
         try {
+            sdf.setTimeZone(fromTz);
+            String dateStr = sdf.format(date);
+            sdf.setTimeZone(toTz);
             return sdf.parse(dateStr);
         } catch (ParseException e) {
-            throw new IllegalArgumentException("Invalid date format: " + dateStr, e);
+            Log.e(TAG, "日期格式无效: " + date.toString(), e);
+            return date;
         }
     }
 
@@ -767,8 +782,8 @@ public class DateUtils {
      * 计算两个日期之间的差值
      *
      * @param startDate 开始日期
-     * @param endDate 结束日期
-     * @param unit 差值单位（如 Calendar.DAY_OF_MONTH, Calendar.HOUR_OF_DAY 等）
+     * @param endDate   结束日期
+     * @param unit      差值单位（如 Calendar.DAY_OF_MONTH, Calendar.HOUR_OF_DAY 等）
      * @return 差值
      * @throws IllegalArgumentException 如果单位无效
      */
@@ -790,21 +805,25 @@ public class DateUtils {
             end.set(Calendar.MILLISECOND, 0);
         }
 
-        return (long)(end.get(unit) - start.get(unit));
+        return (long) (end.get(unit) - start.get(unit));
     }
 
     /**
      * 检查日期是否在某个范围内
      *
-     * @param date 需要检查的日期
+     * @param date      需要检查的日期
      * @param startDate 范围的开始日期
-     * @param endDate 范围的结束日期
-     * @return 如果在范围内返回 true，否则返回 false
+     * @param endDate   范围的结束日期
+     * @return 如果在范围内返回 true，否则返回 false；如果输入参数无效，则记录错误并返回 false
      */
     public static boolean isWithinRange(Date date, Date startDate, Date endDate) {
+        if (date == null || startDate == null || endDate == null) {
+            Log.e(TAG, "输入的日期不能为空");
+            return false;
+        }
         if (startDate.after(endDate)) {
-            throw new IllegalArgumentException(
-                "Start date (" + startDate + ") must be before end date (" + endDate + ").");
+            Log.e(TAG, "开始日期 (" + startDate + ") 必须在结束日期 (" + endDate + ") 之前");
+            return false;
         }
         return !date.before(startDate) && !date.after(endDate);
     }
@@ -821,7 +840,7 @@ public class DateUtils {
         Date weekStart = cal.getTime();
         cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY); // Sunday
         Date weekEnd = cal.getTime();
-        return new Date[] {weekStart, weekEnd};
+        return new Date[]{weekStart, weekEnd};
     }
 
     /**
@@ -835,25 +854,29 @@ public class DateUtils {
         Date monthStart = cal.getTime();
         cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH)); // 设置为当月的最后一天
         Date monthEnd = cal.getTime();
-        return new Date[] {monthStart, monthEnd};
+        return new Date[]{monthStart, monthEnd};
     }
 
     /**
      * 修改日期对象的指定字段
      *
-     * @param date 原始日期
+     * @param date  原始日期
      * @param field 要修改的字段（如 Calendar.YEAR, Calendar.MONTH, Calendar.DAY_OF_MONTH 等）
      * @param value 新的值
-     * @return 修改后的日期
-     * @throws IllegalArgumentException 如果字段无效
+     * @return 修改后的日期；如果字段无效或发生其他错误，则返回原始日期
      */
     public static Date setField(Date date, int field, int value) {
+        if (date == null) {
+            Log.e(TAG, "输入的日期不能为空");
+            return date;
+        }
+
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(date);
 
         if (field < 0 || field >= Calendar.FIELD_COUNT) {
-            throw new IllegalArgumentException(
-                "Invalid Calendar field: " + field + ". Must be between 0 and " + (Calendar.FIELD_COUNT - 1));
+            Log.e(TAG, "无效的日历字段: " + field + ". 必须在 0 和 " + (Calendar.FIELD_COUNT - 1) + " 之间");
+            return date;
         }
 
         calendar.set(field, value);

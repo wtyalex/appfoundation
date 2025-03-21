@@ -2,185 +2,176 @@ package com.wty.foundation.common.utils;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * 关闭资源的工具类，提供了多种关闭 Closeable 和 AutoCloseable 资源的方法
+ */
 public class CloseableUtils {
-
-    private static final Logger LOGGER = Logger.getLogger(CloseableUtils.class.getName());
     private static final String TAG = "CloseableUtils";
+    // 日志记录器，用于记录错误信息
+    private static final Logger LOGGER = Logger.getLogger(CloseableUtils.class.getName());
 
-    // 私有构造函数防止外部实例化
-    private CloseableUtils() {}
+    // 私有构造函数，防止外部实例化该工具类
+    private CloseableUtils() {
+    }
 
     /**
-     * 安全关闭 Closeable 对象 如果对象不是 null，则尝试关闭它，并捕获任何可能发生的 IOException
+     * 关闭单个 Closeable 资源
      *
-     * @param closeable 要关闭的对象
+     * @param closeable 要关闭的 Closeable 资源，若为 null 则不执行操作
      */
     public static void close(Closeable closeable) {
-        if (closeable != null) {
-            try {
-                closeable.close();
-            } catch (IOException e) {
-                logError(e);
-            }
+        if (closeable == null) return;
+        try {
+            closeable.close();
+        } catch (IOException e) {
+            logError("Closing Closeable failed", e);
         }
     }
 
     /**
-     * 尝试关闭多个 Closeable 对象 该方法接受可变参数列表的 Closeable 对象，并尝试依次关闭它们 如果某个对象关闭时抛出异常，异常会被记录但不会阻止其他对象的关闭
+     * 关闭多个 Closeable 资源
      *
-     * @param closeables 要关闭的对象列表
+     * @param closeables 要关闭的 Closeable 资源数组，若为 null 则不执行操作
      */
     public static void closeAll(Closeable... closeables) {
-        for (Closeable closeable : closeables) {
-            close(closeable);
-        }
+        if (closeables == null) return;
+        for (Closeable c : closeables) close(c);
     }
 
     /**
-     * 尝试关闭 AutoCloseable 实现对象 该方法用于支持 Java 7 及以上版本的 try-with-resources 语法中的资源
+     * 关闭单个 AutoCloseable 资源
      *
-     * @param autoCloseable 要关闭的对象
+     * @param autoCloseable 要关闭的 AutoCloseable 资源，若为 null 则不执行操作
      */
     public static void close(AutoCloseable autoCloseable) {
-        if (autoCloseable != null) {
-            try {
-                autoCloseable.close();
-            } catch (Exception e) {
-                logError(e);
-            }
+        if (autoCloseable == null) return;
+        try {
+            autoCloseable.close();
+        } catch (Exception e) {
+            logError("Closing AutoCloseable failed", e);
         }
     }
 
     /**
-     * 尝试关闭多个 AutoCloseable 实现对象 该方法接受可变参数列表的 AutoCloseable 对象，并尝试依次关闭它们 如果某个对象关闭时抛出异常，异常会被记录但不会阻止其他对象的关闭
+     * 关闭多个 AutoCloseable 资源
      *
-     * @param autoCloseables 要关闭的对象列表
+     * @param autoCloseables 要关闭的 AutoCloseable 资源数组，若为 null 则不执行操作
      */
     public static void closeAll(AutoCloseable... autoCloseables) {
-        for (AutoCloseable autoCloseable : autoCloseables) {
-            close(autoCloseable);
-        }
+        if (autoCloseables == null) return;
+        for (AutoCloseable ac : autoCloseables) close(ac);
     }
 
     /**
-     * 批量关闭多个资源，并捕获所有发生的异常 如果有异常发生，将收集所有的异常，并最终抛出一个 CompositeException 包含所有异常
+     * 关闭 Closeable 资源，忽略指定类型的异常
      *
-     * @param closeables 要关闭的资源列表
-     * @throws CompositeException 如果有多个异常发生，则抛出包含所有异常的 CompositeException
+     * @param closeable            要关闭的 Closeable 资源，若为 null 则不执行操作
+     * @param ignoredExceptionType 要忽略的异常类型，若为 null 则不执行操作
      */
-    public static void closeAllWithExceptions(List<Closeable> closeables) throws CompositeException {
-        List<IOException> exceptions = new ArrayList<>();
-        for (Closeable closeable : closeables) {
-            try {
-                closeable.close();
-            } catch (IOException e) {
-                exceptions.add(e);
-            }
-        }
-        if (!exceptions.isEmpty()) {
-            throw new CompositeException(exceptions);
-        }
-    }
-
-    /**
-     * 忽略特定类型的异常 在关闭资源时，如果发生指定类型的异常，则忽略并继续
-     *
-     * @param closeable 要关闭的资源
-     * @param ignoreExceptionType 要忽略的异常类型
-     */
-    public static void closeIgnoring(Class<? extends Exception> ignoreExceptionType, Closeable closeable) {
-        if (closeable != null) {
-            try {
-                closeable.close();
-            } catch (IOException e) {
-                if (ignoreExceptionType.isInstance(e)) {
-                    // Ignore the exception
-                } else {
-                    logError(e);
-                }
+    public static void closeIgnoring(Closeable closeable, Class<? extends Exception> ignoredExceptionType) {
+        if (closeable == null || ignoredExceptionType == null) return;
+        try {
+            closeable.close();
+        } catch (IOException e) {
+            if (!ignoredExceptionType.isInstance(e)) {
+                logError("Closing Closeable failed", e);
             }
         }
     }
 
     /**
-     * 关闭 AutoCloseable 资源时忽略特定类型的异常
+     * 尝试多次关闭 Closeable 资源
      *
-     * @param autoCloseable 要关闭的资源
-     * @param ignoreExceptionType 要忽略的异常类型
-     */
-    public static void closeIgnoring(Class<? extends Exception> ignoreExceptionType, AutoCloseable autoCloseable) {
-        if (autoCloseable != null) {
-            try {
-                autoCloseable.close();
-            } catch (Exception e) {
-                if (ignoreExceptionType.isInstance(e)) {
-                    // Ignore the exception
-                } else {
-                    logError(e);
-                }
-            }
-        }
-    }
-
-    /**
-     * 关闭资源时尝试重试 如果关闭失败，可以指定最大重试次数
-     *
-     * @param closeable 要关闭的资源
-     * @param maxRetries 最大重试次数
+     * @param closeable  要关闭的 Closeable 资源，若为 null 则不执行操作
+     * @param maxRetries 最大重试次数，若小于 0 则不执行操作
      */
     public static void closeWithRetry(Closeable closeable, int maxRetries) {
-        int retries = 0;
-        while (retries <= maxRetries) {
+        if (closeable == null || maxRetries < 0) return;
+
+        int attempts = 0;
+        while (attempts <= maxRetries) {
             try {
                 closeable.close();
-                break;
+                return;
             } catch (IOException e) {
-                retries++;
-                if (retries > maxRetries) {
-                    logError(e);
-                    break;
+                if (attempts++ == maxRetries) {
+                    logError("Close failed after " + maxRetries + " retries", e);
                 }
-                try {
-                    Thread.sleep(100); // Simple backoff strategy.
-                } catch (InterruptedException ignored) {
-                    Thread.currentThread().interrupt();
-                }
+                sleepQuietly(100);
             }
+        }
+    }
+
+    /**
+     * 线程安静休眠指定毫秒数，忽略中断异常
+     *
+     * @param millis 要休眠的毫秒数
+     */
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
     /**
      * 记录错误日志
      *
-     * @param e 异常对象
+     * @param message 错误消息
+     * @param e       异常对象
      */
-    private static void logError(Exception e) {
-        LOGGER.log(Level.SEVERE, TAG + ": An error occurred while closing resources.", e);
+    private static void logError(String message, Throwable e) {
+        LOGGER.log(Level.SEVERE, TAG + ": " + message, e);
     }
 
     /**
-     * 一个包含多个异常的复合异常类
+     * 关闭混合的 Closeable 和 AutoCloseable 资源列表
+     *
+     * @param resources 资源列表，若为 null 则不执行操作
      */
-    public static class CompositeException extends Exception {
-        private final List<IOException> exceptions;
-
-        public CompositeException(List<IOException> exceptions) {
-            super("Multiple exceptions occurred while closing resources.");
-            this.exceptions = exceptions;
+    public static void closeAllMixed(List<?> resources) {
+        if (resources == null) return;
+        for (Object obj : resources) {
+            if (obj instanceof Closeable) {
+                close((Closeable) obj);
+            } else if (obj instanceof AutoCloseable) {
+                close((AutoCloseable) obj);
+            }
         }
+    }
 
+    /**
+     * 安全执行操作并在最后关闭 Closeable 资源
+     *
+     * @param closeable    要关闭的 Closeable 资源
+     * @param action       要执行的操作
+     * @param defaultValue 操作失败时的默认返回值
+     * @return 操作结果，若失败则返回默认值
+     */
+    public static <T> T executeSafely(Closeable closeable, SafeClosure<T> action, T defaultValue) {
+        try {
+            return action.execute(closeable);
+        } catch (Exception e) {
+            logError("Safe execute failed", e);
+            return defaultValue;
+        } finally {
+            close(closeable);
+        }
+    }
+
+    public interface SafeClosure<T> {
         /**
-         * 获取所有收集的异常
+         * 执行操作
          *
-         * @return 异常列表
+         * @param closeable 关联的 Closeable 资源
+         * @return 操作结果
+         * @throws Exception 操作过程中可能抛出的异常
          */
-        public List<IOException> getExceptions() {
-            return exceptions;
-        }
+        T execute(Closeable closeable) throws Exception;
     }
 }

@@ -23,10 +23,9 @@ public class DecimalUtils {
 
     /**
      * 安全地将对象转换为 BigDecimal
-     * 如果转换失败，则返回指定的默认值或零
      *
-     * @param num          要转换的对象 支持 String, Float, Double, Integer, Long 类型
-     * @param defaultValue 在转换失败时返回的默认值 (可选) 如果未提供，默认为零
+     * @param num          要转换的对象
+     * @param defaultValue 在转换失败时返回的默认值 (可选)
      * @return 转换后的 BigDecimal 对象 或 默认值
      */
     private static BigDecimal toBigDecimal(Object num, BigDecimal defaultValue) {
@@ -34,35 +33,40 @@ public class DecimalUtils {
             if (num == null || "".equals(num.toString().trim())) {
                 return defaultValue != null ? defaultValue : BigDecimal.ZERO;
             } else if (num instanceof String) {
-                return new BigDecimal((String) num);
+                String numStr = ((String) num).trim();
+                if ("".equals(numStr)) {
+                    return defaultValue != null ? defaultValue : BigDecimal.ZERO;
+                }
+                return new BigDecimal(numStr);
             } else if (num instanceof Float || num instanceof Double) {
                 return new BigDecimal(num.toString());
             } else if (num instanceof Integer || num instanceof Long) {
                 return BigDecimal.valueOf(((Number) num).longValue());
             } else {
-                throw new NumberFormatException("Unsupported number type");
+                Log.e(TAG, "Unsupported number type: " + num.getClass().getName());
+                return defaultValue != null ? defaultValue : BigDecimal.ZERO;
             }
         } catch (NumberFormatException e) {
-            Log.e(TAG, "toBigDecimal", e);
+            Log.e(TAG, "Error converting to BigDecimal", e);
             return defaultValue != null ? defaultValue : BigDecimal.ZERO;
         }
     }
 
     /**
-     * 将对象转换为 BigDecimal，若转换失败则返回 null
+     * 安全地将对象转换为 BigDecimal，默认默认值为 null
      *
-     * @param num 要转换的对象 支持 String, Float, Double, Integer, Long 类型
-     * @return 转换后的 BigDecimal 对象 或 null
+     * @param num 要转换的对象
+     * @return 转换后的 BigDecimal 对象或默认值
      */
     public static BigDecimal toBigDecimal(Object num) {
         return toBigDecimal(num, null);
     }
 
     /**
-     * 安全地解析字符串为 BigDecimal，若解析失败则返回零
+     * 安全地将字符串解析为 BigDecimal，默认值为零
      *
-     * @param num 字符串形式的数字
-     * @return 解析后的 BigDecimal 对象 或 零
+     * @param num 要解析的字符串
+     * @return 解析后的 BigDecimal 对象或零
      */
     public static BigDecimal safeParseBigDecimal(String num) {
         return toBigDecimal(num, BigDecimal.ZERO);

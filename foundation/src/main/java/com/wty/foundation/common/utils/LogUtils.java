@@ -1,5 +1,9 @@
 package com.wty.foundation.common.utils;
 
+import android.util.Log;
+
+import com.wty.foundation.BuildConfig;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -14,10 +18,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.wty.foundation.BuildConfig;
-
-import android.util.Log;
-
 /**
  * 日志工具类，提供了一系列静态方法来记录不同级别的日志
  * 该工具类考虑了多线程环境下的安全性，并提供了丰富的日志信息，包括线程名、类名、方法名和行号
@@ -29,15 +29,14 @@ public class LogUtils {
     private static final ThreadLocal<String> CURRENT_TAG = new ThreadLocal<>(); // 当前线程的日志标签
     private static final ThreadLocal<Boolean> INCLUDE_STACK_TRACE = new ThreadLocal<>(); // 是否包含堆栈跟踪信息
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm", Locale.getDefault()); // 日期格式
-    private static final SimpleDateFormat DATE_TIME_FORMAT =
-        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()); // 日期时间格式
+    private static final SimpleDateFormat DATE_TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()); // 日期时间格式
 
     private static final BlockingQueue<Runnable> LOG_QUEUE = new LinkedBlockingQueue<>(); // 日志任务队列
     private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(1, // 核心线程数
-        5, // 最大线程数
-        60L, // 空闲线程存活时间
-        TimeUnit.SECONDS, // 时间单位
-        LOG_QUEUE // 工作队列
+            5, // 最大线程数
+            60L, // 空闲线程存活时间
+            TimeUnit.SECONDS, // 时间单位
+            LOG_QUEUE // 工作队列
     );
 
     static {
@@ -140,8 +139,7 @@ public class LogUtils {
             String methodName = targetElement.getMethodName();
             int lineNumber = targetElement.getLineNumber();
 
-            return String.format("[Thread: %s] %s.%s(%d): %s", Thread.currentThread().getName(), className, methodName,
-                lineNumber, msg);
+            return String.format("[Thread: %s] %s.%s(%d): %s", Thread.currentThread().getName(), className, methodName, lineNumber, msg);
         } catch (Exception e) {
             // 防止堆栈跟踪解析失败导致应用崩溃
             return msg;
@@ -152,8 +150,8 @@ public class LogUtils {
      * 分割过长的日志消息并打印
      *
      * @param priority 日志级别
-     * @param tag 日志标签
-     * @param message 日志消息
+     * @param tag      日志标签
+     * @param message  日志消息
      */
     private static void log(int priority, String tag, String message) {
         if (message.length() > MAX_LOG_SIZE) {
@@ -227,7 +225,7 @@ public class LogUtils {
      * 记录ERROR级别的日志，并附带异常信息
      *
      * @param msg 日志消息
-     * @param tr 异常对象
+     * @param tr  异常对象
      */
     public static void e(String msg, Throwable tr) {
         if (currentLogLevel <= Log.ERROR) {
@@ -239,9 +237,9 @@ public class LogUtils {
      * 记录带有异常信息的ERROR级别的日志
      *
      * @param priority 日志级别
-     * @param tag 日志标签
-     * @param message 日志消息
-     * @param tr 异常对象
+     * @param tag      日志标签
+     * @param message  日志消息
+     * @param tr       异常对象
      */
     private static void logAsync(int priority, String tag, String message, Throwable tr) {
         EXECUTOR.execute(() -> {
@@ -291,8 +289,8 @@ public class LogUtils {
      * 异步记录日志
      *
      * @param priority 日志级别
-     * @param tag 日志标签
-     * @param message 日志消息
+     * @param tag      日志标签
+     * @param message  日志消息
      */
     private static void logAsync(int priority, String tag, String message) {
         EXECUTOR.execute(() -> {
@@ -337,7 +335,7 @@ public class LogUtils {
      * 记录日志写入耗时
      *
      * @param startTime 开始时间
-     * @param endTime 结束时间
+     * @param endTime   结束时间
      */
     private static void logWriteDuration(long startTime, long endTime) {
         long duration = endTime - startTime;
@@ -482,12 +480,32 @@ public class LogUtils {
      * 日志回调接口
      */
     public interface LogCallback {
+        /**
+         * 当日志成功记录时调用
+         *
+         * @param successCount 成功记录的日志数量
+         */
         void onSuccess(int successCount);
 
+        /**
+         * 当日志记录失败时调用
+         *
+         * @param failureCount 失败记录的日志数量
+         */
         void onError(int failureCount);
 
+        /**
+         * 当待处理日志队列已满时调用
+         *
+         * @param maxPendingLogs 待处理日志的最大数量
+         */
         void onPendingLogsFull(int maxPendingLogs);
 
+        /**
+         * 当日志写入耗时过长触发性能警报时调用
+         *
+         * @param duration 日志写入耗时（单位：毫秒）
+         */
         void onPerformanceAlert(long duration);
     }
 }

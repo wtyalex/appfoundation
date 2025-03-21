@@ -1,21 +1,25 @@
 package com.wty.foundation.common.utils;
 
 import android.telephony.PhoneNumberUtils;
+import android.util.Log;
 import android.util.Patterns;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
 public class StringUtils {
+    private static final String TAG = "StringUtils";
 
     /**
      * 私有构造函数防止外部实例化
      */
-    private StringUtils() {}
+    private StringUtils() {
+    }
 
     /**
      * 检查给定字符串是否为null
@@ -83,7 +87,7 @@ public class StringUtils {
     /**
      * 返回指定索引首次出现后的子字符串
      *
-     * @param str 要处理的字符串
+     * @param str     要处理的字符串
      * @param indexOf 要查找的索引
      * @return 索引之后的子字符串
      */
@@ -100,7 +104,7 @@ public class StringUtils {
     /**
      * 返回指定索引最后一次出现后的子字符串
      *
-     * @param str 要处理的字符串
+     * @param str     要处理的字符串
      * @param indexOf 要查找的索引
      * @return 索引之后的子字符串
      */
@@ -133,20 +137,34 @@ public class StringUtils {
     }
 
     /**
-     * 校验输入的字符串是否为有效的电话号码，并且符合中国大陆手机号的格式 
+     * 校验输入的字符串是否为有效的电话号码，并且符合中国大陆手机号的格式
      *
      * @param phoneNumber 要校验的电话号码字符串
      * @return 如果电话号码格式正确并且有效返回true，否则返回false
      */
     public static boolean isValidPhoneNumberAdvanced(String phoneNumber) {
-        // 首先检查是否为空或不符合一般电话号码格式
         if (isNullEmpty(phoneNumber) || !Patterns.PHONE.matcher(phoneNumber).matches()) {
             return false;
         }
-        // 然后检查是否为有效的手机号长度和格式
-        return PhoneNumberUtils.isGlobalPhoneNumber(phoneNumber) &&
-        // 进一步确保是中国大陆手机号（可选）
-            phoneNumber.startsWith("1") && phoneNumber.length() == 11;
+        return PhoneNumberUtils.isGlobalPhoneNumber(phoneNumber) && phoneNumber.startsWith("1") && phoneNumber.length() == 11;
+    }
+
+    /**
+     * 验证字符串是否为有效 URL
+     *
+     * @param url 待验证字符串，null 则无效
+     * @return 有效返回 true，否则 false
+     */
+    public static boolean isValidUrl(String url) {
+        if (url == null) {
+            return false;
+        }
+        try {
+            new URL(url).toURI();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -183,7 +201,7 @@ public class StringUtils {
     /**
      * 如果给定字符串为null或空，则返回默认字符串
      *
-     * @param str 要检查的字符串
+     * @param str        要检查的字符串
      * @param defaultStr 默认字符串
      * @return 给定的字符串或默认字符串
      */
@@ -194,8 +212,8 @@ public class StringUtils {
     /**
      * 在字符串左侧填充特定字符直到达到指定长度
      *
-     * @param str 要填充的字符串
-     * @param size 期望的长度
+     * @param str     要填充的字符串
+     * @param size    期望的长度
      * @param padChar 填充字符
      * @return 填充后的字符串
      */
@@ -205,33 +223,44 @@ public class StringUtils {
         }
         int pads = size - str.length();
         if (pads <= 0) {
-            return str; // 返回原字符串
+            return str;
         }
         if (pads > 8192) {
-            throw new IllegalArgumentException("Padding length (" + pads + ") is too large");
+            Log.e(TAG, "Padding length (" + pads + ") is too large, returning original string.");
+            return str;
         }
-        return repeat(padChar, pads).concat(str);
+        StringBuilder sb = new StringBuilder(pads + str.length());
+        for (int i = 0; i < pads; i++) {
+            sb.append(padChar);
+        }
+        sb.append(str);
+
+        return sb.toString();
     }
 
     /**
-     * 重复一个字符多次
+     * 重复给定字符n次
      *
-     * @param ch 要重复的字符
+     * @param ch     字符
      * @param repeat 重复次数
      * @return 重复后的字符串
      */
-    public static String repeat(char ch, int repeat) {
-        final char[] buf = new char[repeat];
-        for (int i = repeat - 1; i >= 0; i--) {
-            buf[i] = ch;
+    private static String repeat(char ch, int repeat) {
+        if (repeat < 0) {
+            Log.e(TAG, "Repeat count cannot be negative, returning empty string.");
+            return "";
         }
-        return new String(buf);
+        StringBuilder sb = new StringBuilder(repeat);
+        for (int i = 0; i < repeat; i++) {
+            sb.append(ch);
+        }
+        return sb.toString();
     }
 
     /**
      * 获取字符串中指定分隔符前的部分
      *
-     * @param str 要处理的字符串
+     * @param str       要处理的字符串
      * @param separator 分隔符
      * @return 分隔符前的部分
      */
@@ -252,7 +281,7 @@ public class StringUtils {
     /**
      * 获取字符串中指定分隔符后的一部分
      *
-     * @param str 要处理的字符串
+     * @param str       要处理的字符串
      * @param separator 分隔符
      * @return 分隔符后的一部分
      */
@@ -273,9 +302,9 @@ public class StringUtils {
     /**
      * 获取字符串中指定分隔符之间的部分
      *
-     * @param str 要处理的字符串
+     * @param str            要处理的字符串
      * @param startSeparator 开始分隔符
-     * @param endSeparator 结束分隔符
+     * @param endSeparator   结束分隔符
      * @return 分隔符之间的部分
      */
     public static String getSubstringBetween(String str, String startSeparator, String endSeparator) {
@@ -335,7 +364,7 @@ public class StringUtils {
     /**
      * 获取字符串中指定分隔符后的一部分，支持最后一个分隔符
      *
-     * @param str 要处理的字符串
+     * @param str       要处理的字符串
      * @param separator 分隔符
      * @return 分隔符后的一部分
      */
@@ -356,9 +385,9 @@ public class StringUtils {
     /**
      * 替换字符串中的所有匹配项
      *
-     * @param text 原始文本
+     * @param text         原始文本
      * @param searchString 要搜索的字符串
-     * @param replacement 替换字符串
+     * @param replacement  替换字符串
      * @return 替换后的字符串，如果原始文本或搜索字符串为null，则返回null
      */
     public static String replaceAll(String text, String searchString, String replacement) {
@@ -391,7 +420,7 @@ public class StringUtils {
     /**
      * 判断字符串是否以指定的字符串结尾
      *
-     * @param str 字符串
+     * @param str    字符串
      * @param suffix 后缀
      * @return 如果字符串以指定的后缀结尾返回true，否则返回false
      */
@@ -408,7 +437,7 @@ public class StringUtils {
     /**
      * 判断字符串是否以指定的字符串开头
      *
-     * @param str 字符串
+     * @param str    字符串
      * @param prefix 前缀
      * @return 如果字符串以指定的前缀开头返回true，否则返回false
      */
@@ -425,13 +454,13 @@ public class StringUtils {
     /**
      * 将字符串拆分成数组，忽略空字符串
      *
-     * @param str 字符串
+     * @param str       字符串
      * @param delimiter 分隔符
      * @return 字符串数组
      */
     public static String[] splitIgnoreEmpty(String str, String delimiter) {
         if (str == null || delimiter == null) {
-            return new String[] {str};
+            return new String[]{str};
         }
         String[] parts = str.split(delimiter);
         List<String> nonEmptyParts = new ArrayList<>();
@@ -446,7 +475,7 @@ public class StringUtils {
     /**
      * 将字符串数组连接成一个字符串
      *
-     * @param parts 字符串数组
+     * @param parts     字符串数组
      * @param delimiter 分隔符
      * @return 连接后的字符串
      */
@@ -486,13 +515,13 @@ public class StringUtils {
     /**
      * 将字符串按照指定分隔符分割，保留空字符串
      *
-     * @param str 字符串
+     * @param str       字符串
      * @param delimiter 分隔符
      * @return 字符串数组
      */
     public static String[] splitPreserveEmpty(String str, String delimiter) {
         if (str == null || delimiter == null) {
-            return new String[] {str};
+            return new String[]{str};
         }
         return str.split(Pattern.quote(delimiter), -1);
     }
@@ -500,13 +529,13 @@ public class StringUtils {
     /**
      * 将字符串按照指定分隔符分割，并去除每个元素的空白
      *
-     * @param str 字符串
+     * @param str       字符串
      * @param delimiter 分隔符
      * @return 字符串数组
      */
     public static String[] splitTrim(String str, String delimiter) {
         if (str == null || delimiter == null) {
-            return new String[] {str};
+            return new String[]{str};
         }
         String[] parts = str.split(delimiter);
         for (int i = 0; i < parts.length; i++) {
@@ -518,13 +547,13 @@ public class StringUtils {
     /**
      * 将字符串按照指定分隔符分割，并去除每个元素的空白，同时忽略空字符串
      *
-     * @param str 字符串
+     * @param str       字符串
      * @param delimiter 分隔符
      * @return 字符串数组
      */
     public static String[] splitTrimIgnoreEmpty(String str, String delimiter) {
         if (str == null || delimiter == null) {
-            return new String[] {str};
+            return new String[]{str};
         }
         String[] parts = str.split(delimiter);
         List<String> trimmedParts = new ArrayList<>();
@@ -540,7 +569,7 @@ public class StringUtils {
     /**
      * 删除字符串前导和尾随的指定字符
      *
-     * @param str 字符串
+     * @param str       字符串
      * @param trimChars 要删除的字符集
      * @return 去除了指定字符的字符串
      */
@@ -562,7 +591,7 @@ public class StringUtils {
     /**
      * 删除字符串前导的指定字符
      *
-     * @param str 字符串
+     * @param str       字符串
      * @param trimChars 要删除的字符集
      * @return 去除了前导指定字符的字符串
      */
@@ -580,7 +609,7 @@ public class StringUtils {
     /**
      * 删除字符串尾随的指定字符
      *
-     * @param str 字符串
+     * @param str       字符串
      * @param trimChars 要删除的字符集
      * @return 去除了尾随指定字符的字符串
      */
@@ -598,7 +627,7 @@ public class StringUtils {
     /**
      * 从字符串中移除指定的字符
      *
-     * @param str 字符串
+     * @param str        字符串
      * @param removeChar 要移除的字符
      * @return 移除指定字符后的字符串
      */
@@ -618,7 +647,7 @@ public class StringUtils {
     /**
      * 从字符串中移除指定的字符集合
      *
-     * @param str 字符串
+     * @param str         字符串
      * @param removeChars 要移除的字符集合
      * @return 移除指定字符集合后的字符串
      */
@@ -638,7 +667,7 @@ public class StringUtils {
     /**
      * 将字符串中的指定字符替换为另一个字符
      *
-     * @param str 字符串
+     * @param str     字符串
      * @param oldChar 要替换的字符
      * @param newChar 新字符
      * @return 替换后的字符串
@@ -657,9 +686,9 @@ public class StringUtils {
     /**
      * 将字符串中的指定字符集合替换为另一个字符
      *
-     * @param str 字符串
+     * @param str      字符串
      * @param oldChars 要替换的字符集合
-     * @param newChar 新字符
+     * @param newChar  新字符
      * @return 替换后的字符串
      */
     public static String replaceChars(String str, String oldChars, char newChar) {

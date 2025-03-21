@@ -1,12 +1,14 @@
 package com.wty.foundation.common.utils;
 
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -14,88 +16,67 @@ import android.os.Build;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.DrawableRes;
-import androidx.annotation.RequiresApi;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
-import com.wty.foundation.R;
 import com.wty.foundation.common.init.AppContext;
 
-import java.io.ByteArrayOutputStream;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NotificationUtils {
-
     private static final String TAG = "NotificationUtils";
+    // 默认通知渠道 ID
     private static final String DEFAULT_CHANNEL_ID = "default_channel_id";
-    private Context context;
-    private NotificationManager notificationManager;
-    private int notificationIdCounter = 0;
+    // 大文本最大长度
+    private static final int MAX_BIG_TEXT_LENGTH = 5000;
+    // 标题最大长度
+    private static final int MAX_TITLE_LENGTH = 100;
+    // 内容最大长度
+    private static final int MAX_CONTENT_LENGTH = 200;
 
+    // 上下文对象
+    private final Context context;
+    // 通知管理器
+    private final NotificationManager notificationManager;
+    // 通知 ID 计数器
+    private final AtomicInteger notificationIdCounter = new AtomicInteger(0);
+
+    /**
+     * 构造函数，初始化上下文和通知管理器，创建默认通知渠道
+     */
     public NotificationUtils() {
         this.context = AppContext.getInstance().getContext();
-        this.notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        this.notificationManager = ContextCompat.getSystemService(context, NotificationManager.class);
+
         if (notificationManager == null) {
-            throw new IllegalStateException("Notification service not available");
+            Log.e(TAG, "Notification service unavailable");
+        } else {
+            createDefaultChannel();
         }
-        createDefaultChannel();
     }
 
     /**
-     * 创建默认的通知渠道
+     * 创建默认通知渠道
      */
     private void createDefaultChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(DEFAULT_CHANNEL_ID, "默认频道", NotificationManager.IMPORTANCE_DEFAULT);
-            channel.setDescription("这是默认的通知频道");
-            channel.enableLights(true);
-            channel.setLightColor(Color.RED);
-            channel.setShowBadge(true);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
+        if (notificationManager == null) return;
 
-    /**
-     * 创建或更新自定义通知渠道
-     *
-     * @param channelId   渠道ID
-     * @param channelName 渠道名称
-     * @param description 渠道描述
-     * @param importance  渠道重要性
-     */
-    public synchronized void createCustomChannel(String channelId, String channelName, String description, int importance) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel existingChannel = notificationManager.getNotificationChannel(channelId);
-            int validImportance = validateImportance(importance);
-            if (existingChannel != null && shouldUpdateChannel(existingChannel, channelName, description, validImportance)) {
-                notificationManager.deleteNotificationChannel(channelId); // 删除旧渠道前检查并取消相关通知
-                cancelNotificationsByChannelId(channelId);
+            NotificationChannel existingChannel = notificationManager.getNotificationChannel(DEFAULT_CHANNEL_ID);
+            if (existingChannel == null) {
+                // 创建通知渠道
+                NotificationChannel channel = new NotificationChannel(DEFAULT_CHANNEL_ID, truncateString("默认频道", MAX_TITLE_LENGTH), NotificationManager.IMPORTANCE_DEFAULT);
+                channel.setDescription("默认通知渠道");
+                channel.enableLights(true);
+                channel.setLightColor(Color.RED);
+                channel.setShowBadge(true);
+                notificationManager.createNotificationChannel(channel);
             }
-            NotificationChannel channel = new NotificationChannel(channelId, channelName, validImportance);
-            channel.setDescription(description);
-            notificationManager.createNotificationChannel(channel);
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    private boolean shouldUpdateChannel(NotificationChannel existingChannel, String newName, String newDescription, int newImportance) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return !(existingChannel.getName().equals(newName) && existingChannel.getDescription().equals(newDescription) && existingChannel.getImportance() == newImportance);
-        }
-        return false; // 如果当前API级别低于Oreo，则不需要更新渠道
-    }
-
-    /**
-     * 验证通知渠道的重要性级别
-     *
-     * @param importance 重要性级别
-     * @return 有效的重要性级别
-     */
-    private int validateImportance(int importance) {
-        if (importance < NotificationManager.IMPORTANCE_NONE || importance > NotificationManager.IMPORTANCE_HIGH) {
-            Log.w(TAG, "Invalid importance level: " + importance + ", using default.");
-            return NotificationManager.IMPORTANCE_DEFAULT;
-        }
-        return importance;
     }
 
     /**
@@ -103,80 +84,161 @@ public class NotificationUtils {
      *
      * @param title     通知标题
      * @param message   通知内容
-     * @param iconResId 图标资源ID
-     * @param intent    点击通知后的跳转意图
+     * @param iconResId 通知小图标资源 ID
+     * @param intent    点击通知后的意图
      * @param priority  通知优先级
      * @param color     通知颜色
-     * @param soundUri  通知声音
+     * @param soundUri  通知声音 URI
      */
-    public synchronized void showNotification(String title, String message, @DrawableRes int iconResId, Intent intent, int priority, Integer color, Uri soundUri) {
-        if (!isResourceValid(iconResId)) {
-            Log.e(TAG, "Invalid icon resource ID provided for showNotification");
+    public void showNotification(@NonNull String title, @NonNull String message, @DrawableRes int iconResId, @Nullable Intent intent, int priority, @ColorInt int color, @Nullable Uri soundUri) {
+        if (!isNotificationEnabled()) return;
+        if (!validateIconResource(iconResId)) return;
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID).setSmallIcon(iconResId).setContentTitle(truncateString(title, MAX_TITLE_LENGTH)).setContentText(truncateString(message, MAX_CONTENT_LENGTH)).setColor(color).setPriority(validatePriority(priority)).setSound(getValidSound(soundUri)).setAutoCancel(true);
+
+        setContentIntent(builder, intent);
+        safelyNotify(builder.build(), notificationIdCounter.incrementAndGet());
+    }
+
+    /**
+     * 设置通知的点击意图
+     *
+     * @param builder 通知构建器
+     * @param intent  意图
+     */
+    private void setContentIntent(@NonNull NotificationCompat.Builder builder, @Nullable Intent intent) {
+        PendingIntent pendingIntent = createSafePendingIntent(intent);
+        if (pendingIntent != null) {
+            builder.setContentIntent(pendingIntent);
+        }
+    }
+
+    /**
+     * 安全地发送通知
+     *
+     * @param notification   通知对象
+     * @param notificationId 通知 ID
+     */
+    private void safelyNotify(@NonNull Notification notification, int notificationId) {
+        if (notificationManager == null) {
+            Log.w(TAG, "Cannot notify: NotificationManager is null");
             return;
         }
 
-        PendingIntent pendingIntent = createPendingIntent(intent);
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID).setSmallIcon(iconResId).setContentTitle(title).setContentText(message).setColor(color != null ? color : Color.RED).setPriority(validatePriority(priority)).setSound(soundUri != null ? soundUri : RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)).setContentIntent(pendingIntent).setAutoCancel(true);
-
         try {
-            notificationManager.notify(getNextNotificationId(), builder.build());
+            notificationManager.notify(notificationId, notification);
+        } catch (SecurityException e) {
+            Log.e(TAG, "SecurityException when sending notification: " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Illegal argument: " + e.getMessage());
         } catch (Exception e) {
-            Log.e(TAG, "Error showing notification", e);
+            Log.e(TAG, "Unexpected error: " + e.getMessage(), e);
         }
     }
 
     /**
-     * 验证通知优先级
+     * 检查通知是否可用
      *
-     * @param priority 优先级
-     * @return 有效的优先级
+     * @return 通知是否可用
      */
-    private int validatePriority(int priority) {
-        if (priority < NotificationCompat.PRIORITY_MIN || priority > NotificationCompat.PRIORITY_MAX) {
-            Log.w(TAG, "Invalid priority level: " + priority + ", using default.");
-            return NotificationCompat.PRIORITY_DEFAULT;
+    private boolean isNotificationEnabled() {
+        if (notificationManager == null) {
+            Log.w(TAG, "NotificationManager unavailable");
+            return false;
         }
-        return priority;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Missing POST_NOTIFICATIONS permission");
+            return false;
+        }
+        return true;
     }
 
     /**
-     * 创建PendingIntent
+     * 验证图标资源是否有效
+     *
+     * @param resId 图标资源 ID
+     * @return 图标资源是否有效
+     */
+    private boolean validateIconResource(@DrawableRes int resId) {
+        try {
+            ContextCompat.getDrawable(context, resId);
+            return true;
+        } catch (Resources.NotFoundException e) {
+            Log.e(TAG, "Invalid icon resource: " + resId);
+            return false;
+        }
+    }
+
+    /**
+     * 创建安全的 PendingIntent
      *
      * @param intent 意图
-     * @return PendingIntent
+     * @return 安全的 PendingIntent
      */
-    private PendingIntent createPendingIntent(Intent intent) {
+    private PendingIntent createSafePendingIntent(@Nullable Intent intent) {
+        if (intent == null) return null;
+
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         }
-        return PendingIntent.getActivity(context, 0, intent, flags);
-    }
 
-    /**
-     * 获取下一个通知ID
-     *
-     * @return 通知ID
-     */
-    private synchronized int getNextNotificationId() {
-        return ++notificationIdCounter;
-    }
-
-    /**
-     * 验证资源ID是否有效
-     *
-     * @param resourceId 资源ID
-     * @return 是否有效
-     */
-    private boolean isResourceValid(@DrawableRes int resourceId) {
         try {
-            context.getResources().getDrawable(resourceId, null);
+            return PendingIntent.getActivity(context, (int) System.currentTimeMillis(), // 唯一请求码
+                    intent, flags);
+        } catch (Exception e) {
+            Log.e(TAG, "Create PendingIntent failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 获取有效的声音 URI
+     *
+     * @param soundUri 声音 URI
+     * @return 有效的声音 URI
+     */
+    private Uri getValidSound(@Nullable Uri soundUri) {
+        return (soundUri != null && isValidSoundUri(soundUri)) ? soundUri : RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+    }
+
+    /**
+     * 验证声音 URI 是否有效
+     *
+     * @param uri 声音 URI
+     * @return 声音 URI 是否有效
+     */
+    private boolean isValidSoundUri(@NonNull Uri uri) {
+        try {
+            context.getContentResolver().openInputStream(uri).close();
             return true;
         } catch (Exception e) {
-            Log.e(TAG, "Invalid resource ID: " + resourceId, e);
+            Log.w(TAG, "Invalid sound URI: " + uri);
             return false;
         }
+    }
+
+    /**
+     * 验证通知优先级是否合法
+     *
+     * @param priority 通知优先级
+     * @return 合法的通知优先级
+     */
+    private int validatePriority(int priority) {
+        return (priority >= NotificationCompat.PRIORITY_MIN && priority <= NotificationCompat.PRIORITY_MAX) ? priority : NotificationCompat.PRIORITY_DEFAULT;
+    }
+
+    /**
+     * 截断字符串到指定最大长度
+     *
+     * @param input     输入字符串
+     * @param maxLength 最大长度
+     * @return 截断后的字符串
+     */
+    @NonNull
+    private String truncateString(@Nullable String input, int maxLength) {
+        if (input == null) return "";
+        return (input.length() > maxLength) ? input.substring(0, maxLength) + "…" : input;
     }
 
     /**
@@ -184,182 +246,127 @@ public class NotificationUtils {
      *
      * @param title          通知标题
      * @param bigText        大文本内容
-     * @param iconResId      图标资源ID
-     * @param intent         点击通知后的跳转意图
-     * @param notificationId 通知ID
+     * @param iconResId      通知小图标资源 ID
+     * @param intent         点击通知后的意图
+     * @param notificationId 通知 ID
      */
-    public synchronized void showBigTextNotification(String title, String bigText, @DrawableRes int iconResId, Intent intent, int notificationId) {
-        // 检查图标资源ID是否有效
-        if (!isResourceValid(iconResId)) {
-            Log.e(TAG, "无效的图标资源ID，无法显示大文本通知");
-            return;
-        }
+    public void showBigTextNotification(@NonNull String title, @NonNull String bigText, @DrawableRes int iconResId, @Nullable Intent intent, int notificationId) {
+        if (!isNotificationEnabled()) return;
+        if (!validateIconResource(iconResId)) return;
 
-        // 创建点击通知后触发的PendingIntent
-        PendingIntent pendingIntent = createPendingIntent(intent);
+        NotificationCompat.BigTextStyle style = new NotificationCompat.BigTextStyle().bigText(truncateString(bigText, MAX_BIG_TEXT_LENGTH));
 
-        // 如果文本非常长，则对其进行分割处理
-        NotificationCompat.BigTextStyle bigTextStyle = new NotificationCompat.BigTextStyle().bigText(splitBigText(bigText));
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID).setSmallIcon(iconResId).setContentTitle(truncateString(title, MAX_TITLE_LENGTH)).setStyle(style).setAutoCancel(true);
 
-        // 构建通知
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID).setSmallIcon(iconResId).setContentTitle(title).setStyle(bigTextStyle).setContentIntent(pendingIntent).setAutoCancel(true);
-
-        try {
-            // 发送通知
-            notificationManager.notify(notificationId, builder.build());
-        } catch (Exception e) {
-            Log.e(TAG, "显示大文本通知时出错", e);
-        }
-    }
-
-    /**
-     * 分割大文本
-     * <p>
-     * 当文本长度超过一定限制时，将其分割为多个部分，避免一次性加载过大的文本内容
-     *
-     * @param bigText 要分割的大文本
-     * @return 分割后的文本
-     */
-    private String splitBigText(String bigText) {
-        final int MAX_CHUNK_SIZE = 3000; // 假设每个分割块的最大大小为3000字符
-        if (bigText.length() <= MAX_CHUNK_SIZE) {
-            // 如果文本小于或等于最大块大小，则直接返回原文本
-            return bigText;
-        } else {
-            StringBuilder result = new StringBuilder();
-            int start = 0;
-            while (start < bigText.length()) {
-                int end = Math.min(start + MAX_CHUNK_SIZE, bigText.length());
-                result.append(bigText.substring(start, end));
-                start = end;
-                if (start < bigText.length()) {
-                    result.append("\n"); // 在每个分割点后加上换行符，以便阅读
-                }
-            }
-            return result.toString();
-        }
+        setContentIntent(builder, intent);
+        safelyNotify(builder.build(), notificationId);
     }
 
     /**
      * 显示大图片通知
      *
      * @param title          通知标题
-     * @param bigPicture     大图片
-     * @param iconResId      图标资源ID
-     * @param intent         点击通知后的跳转意图
-     * @param notificationId 通知ID
+     * @param bitmap         大图片
+     * @param iconResId      通知小图标资源 ID
+     * @param intent         点击通知后的意图
+     * @param notificationId 通知 ID
      */
-    public synchronized void showBigPictureNotification(String title, Bitmap bigPicture, @DrawableRes int iconResId, Intent intent, int notificationId) {
-        // 检查图标资源ID是否有效或大图片是否为空
-        if (!isResourceValid(iconResId) || bigPicture == null) {
-            Log.e(TAG, "无效的图标资源ID或者未提供大图片，无法显示大图片通知");
+    public void showBigPictureNotification(@NonNull String title, @NonNull Bitmap bitmap, @DrawableRes int iconResId, @Nullable Intent intent, int notificationId) {
+        if (!isNotificationEnabled()) return;
+        if (!validateIconResource(iconResId)) return;
+
+        Bitmap safeBitmap = compressBitmap(bitmap, 768, 1024);
+        if (safeBitmap == null) {
+            Log.w(TAG, "Bitmap compression failed");
             return;
         }
 
-        // 压缩图片以防止内存溢出，并指定压缩质量为70（可根据实际需求调整）
-        Bitmap compressedBitmap = compressImage(bigPicture, 70);
+        NotificationCompat.BigPictureStyle style = new NotificationCompat.BigPictureStyle().bigPicture(safeBitmap).setSummaryText(truncateString(title, MAX_TITLE_LENGTH));
 
-        PendingIntent pendingIntent = createPendingIntent(intent);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID).setSmallIcon(iconResId).setContentTitle(truncateString(title, MAX_TITLE_LENGTH)).setStyle(style).setAutoCancel(true);
 
-        NotificationCompat.BigPictureStyle bigPictureStyle = new NotificationCompat.BigPictureStyle().bigPicture(compressedBitmap);
+        setContentIntent(builder, intent);
+        safelyNotify(builder.build(), notificationId);
+    }
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID).setSmallIcon(iconResId).setContentTitle(title).setStyle(bigPictureStyle).setContentIntent(pendingIntent).setAutoCancel(true);
-
+    /**
+     * 压缩位图
+     *
+     * @param src       原始位图
+     * @param maxWidth  最大宽度
+     * @param maxHeight 最大高度
+     * @return 压缩后的位图
+     */
+    @Nullable
+    private Bitmap compressBitmap(@NonNull Bitmap src, int maxWidth, int maxHeight) {
         try {
-            // 发送通知
-            notificationManager.notify(notificationId, builder.build());
-        } catch (Exception e) {
-            Log.e(TAG, "显示大图片通知时发生错误", e);
+            int width = src.getWidth();
+            int height = src.getHeight();
+
+            float ratio = Math.min((float) maxWidth / width, (float) maxHeight / height);
+            if (ratio < 1.0f) {
+                width = (int) (width * ratio);
+                height = (int) (height * ratio);
+            }
+
+            return Bitmap.createScaledBitmap(src, width, height, true);
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Invalid bitmap scale parameters");
+            return null;
+        } catch (OutOfMemoryError e) {
+            Log.e(TAG, "Bitmap compression OOM: " + e.getMessage());
+            return null;
         }
     }
 
     /**
-     * 压缩图片以减少内存占用
-     *
-     * @param image   需要压缩的图片
-     * @param quality 图片压缩质量(0-100)，数值越高质量越好但文件越大
-     * @return 压缩后的图片
+     * 取消所有通知
      */
-    private Bitmap compressImage(Bitmap image, int quality) {
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-
-        // 将Bitmap对象压缩成JPEG格式并写入ByteArrayOutputStream中，quality控制压缩质量
-        image.compress(Bitmap.CompressFormat.JPEG, quality, stream);
-        byte[] byteArray = stream.toByteArray();
-
-        // 使用decodeByteArray方法将字节数组转换回Bitmap对象
-        return BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
-    }
-
-    /**
-     * 释放资源，取消所有通知
-     */
-    public synchronized void release() {
-        notificationManager.cancelAll();
-    }
-
-    /**
-     * 根据通知ID取消通知
-     *
-     * @param notificationId 通知ID
-     */
-    public synchronized void cancelNotificationById(int notificationId) {
-        notificationManager.cancel(notificationId);
-    }
-
-    /**
-     * 根据渠道ID取消通知
-     *
-     * @param channelId 渠道ID
-     */
-    public synchronized void cancelNotificationsByChannelId(String channelId) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            StatusBarNotification[] activeNotifications = notificationManager.getActiveNotifications();
-            for (StatusBarNotification statusBarNotification : activeNotifications) {
-                if (statusBarNotification.getNotification().getChannelId().equals(channelId)) {
-                    notificationManager.cancel(statusBarNotification.getId());
-                }
+    public void cancelAllNotifications() {
+        if (notificationManager != null) {
+            try {
+                notificationManager.cancelAll();
+            } catch (Exception e) {
+                Log.e(TAG, "Cancel all notifications failed: " + e.getMessage());
             }
         }
     }
 
     /**
-     * 显示带操作按钮的通知
+     * 取消指定 ID 的通知
      *
-     * @param title          通知标题
-     * @param message        通知内容
-     * @param iconResId      图标资源ID
-     * @param intent         点击通知后的跳转意图
-     * @param notificationId 通知ID
-     * @param priority       通知优先级
-     * @param color          通知颜色
-     * @param soundUri       通知声音
+     * @param notificationId 通知 ID
      */
-    public synchronized void showNotificationWithActions(String title, String message, @DrawableRes int iconResId, Intent intent, int notificationId, int priority, Integer color, Uri soundUri) {
-        if (!isResourceValid(iconResId)) {
-            Log.e(TAG, "Invalid icon resource ID provided for showNotificationWithActions");
-            return;
-        }
-
-        PendingIntent pendingIntent = createPendingIntent(intent);
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, DEFAULT_CHANNEL_ID).setSmallIcon(iconResId).setContentTitle(title).setContentText(message).setColor(color != null ? color : Color.RED).setPriority(validatePriority(priority)).setSound(soundUri != null ? soundUri : RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)).setContentIntent(pendingIntent).addAction(R.drawable.ui_icon_pause, "暂停", createActionPendingIntent("pause")).addAction(R.drawable.ui_icon_cancel, "取消", createActionPendingIntent("cancel")).setAutoCancel(true);
-
-        try {
-            notificationManager.notify(notificationId, builder.build());
-        } catch (Exception e) {
-            Log.e(TAG, "Error showing notification with actions", e);
+    public void cancelNotification(int notificationId) {
+        if (notificationManager != null) {
+            try {
+                notificationManager.cancel(notificationId);
+            } catch (Exception e) {
+                Log.e(TAG, "Cancel notification failed: " + e.getMessage());
+            }
         }
     }
 
     /**
-     * 创建操作按钮的PendingIntent
+     * 按通知渠道取消通知
      *
-     * @param action 操作类型
-     * @return PendingIntent
+     * @param channelId 通知渠道 ID
      */
-    private PendingIntent createActionPendingIntent(String action) {
-        Intent intent = new Intent(action);
-        return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    public void cancelNotificationsByChannel(@NonNull String channelId) {
+        if (notificationManager == null) return;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+
+        try {
+            StatusBarNotification[] notifications = notificationManager.getActiveNotifications();
+            for (StatusBarNotification n : notifications) {
+                if (channelId.equals(n.getNotification().getChannelId())) {
+                    notificationManager.cancel(n.getId());
+                }
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "No permission to get active notifications");
+        } catch (Exception e) {
+            Log.e(TAG, "Error canceling notifications by channel: " + e.getMessage());
+        }
     }
 }

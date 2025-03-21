@@ -542,7 +542,7 @@ public class SPUtils {
             byte[] bytes = stream.toByteArray();
             putBytes(OBJECT_KEY_PREFIX + key, bytes, useCommit);
         } catch (IOException e) {
-            throw new RuntimeException("将 Parcelable 列表写入字节时出错", e);
+            Log.e(TAG, "将 Parcelable 列表写入字节时出错: " + key, e);
         } finally {
             parcel.recycle(); // 回收parcel资源
         }
@@ -559,6 +559,7 @@ public class SPUtils {
     public <T extends Parcelable> List<T> getParcelableList(@NonNull String key, Class<T> clazz) {
         byte[] bytes = getBytes(OBJECT_KEY_PREFIX + key, null);
         if (bytes == null) {
+            Log.w(TAG, "No data found for key: " + key);
             return Collections.emptyList(); // 返回不可变空列表作为默认值
         }
         Parcel parcel = Parcel.obtain();
@@ -689,15 +690,19 @@ public class SPUtils {
 
             // 先存储新文件
             try (FileOutputStream fos = new FileOutputStream(file)) {
-                if (!bitmap.compress(Bitmap.CompressFormat.PNG, quality, fos)) {
-                    throw new IOException("Failed to compress and save bitmap to file.");
+                if (!bitmap.compress(Bitmap.CompressFormat.PNG, Math.max(0, Math.min(quality, 100)), fos)) {
+                    Log.e(TAG, "Failed to compress and save bitmap to file: " + key);
+                    if (file.exists() && !file.delete()) {
+                        Log.w(TAG, "Failed to delete invalid bitmap file: " + file.getAbsolutePath());
+                    }
+                    return;
                 }
             } catch (IOException e) {
                 Log.e(TAG, "IOException while saving bitmap to file: " + key, e);
                 if (file.exists() && !file.delete()) {
                     Log.w(TAG, "Failed to delete invalid bitmap file: " + file.getAbsolutePath());
                 }
-                throw new RuntimeException(e);
+                return;
             }
 
             // 删除旧文件
@@ -899,7 +904,6 @@ public class SPUtils {
                 rollbackTransaction();
             } catch (Exception rollbackException) {
                 Log.e(TAG, "回滚事务失败", rollbackException);
-                throw new Exception("事务提交失败且回滚也失败", rollbackException);
             }
         } else {
             editor.apply();

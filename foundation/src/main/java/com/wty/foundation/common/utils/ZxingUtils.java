@@ -1,11 +1,24 @@
 package com.wty.foundation.common.utils;
 
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.os.AsyncTask;
+import android.os.Build;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+
+import androidx.annotation.ColorInt;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -17,236 +30,576 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 用于生成条形码或二维码，支持异步和同步生成方式，
- * 并可将生成的图片保存到文件，同时支持自定义配置。
- */
 public class ZxingUtils {
-
+    private static final String TAG = "ZxingUtils";
+    // 默认字符集
     private static final String DEFAULT_CHARSET = "UTF-8";
+    // 默认边距
     private static final int DEFAULT_MARGIN = 1;
+    // 默认纠错级别
     private static final ErrorCorrectionLevel DEFAULT_ERROR_CORRECTION = ErrorCorrectionLevel.H;
+    // 主线程处理器
+    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
+    // 最大尺寸
+    private static final int MAX_SIZE = 4096;
+    // 默认配置
+    private static final Config DEFAULT_CONFIG = new Config();
 
     /**
-     * 回调接口，用于处理生成结果。
+     * 生成结果的回调接口
      */
     public interface Callback {
         /**
-         * 生成成功时调用。
+         * 生成成功时调用
          *
-         * @param bitmap 生成的条形码或二维码图片
+         * @param bitmap 生成的位图，可能为空
          */
-        void onSuccess(Bitmap bitmap);
+        void onSuccess(@Nullable Bitmap bitmap);
 
         /**
-         * 生成失败时调用。
+         * 生成失败时调用
          *
-         * @param e 异常信息
+         * @param errorMsg 错误信息
          */
-        void onFailure(Exception e);
+        void onFailure(@NonNull String errorMsg);
     }
 
     /**
-     * 配置类，用于设置生成条形码或二维码的参数。
+     * 二维码生成配置类
      */
     public static class Config {
-        int fgColor = Color.BLACK; // 前景色
-        int bgColor = Color.WHITE; // 背景色
-        int margin = DEFAULT_MARGIN; // 边距
-        ErrorCorrectionLevel errorCorrection = DEFAULT_ERROR_CORRECTION; // 纠错级别，主要用于QR码
-        Bitmap logo; // 二维码中间的logo，仅用于QR码
-        float logoSizeRatio = 0.2f; // Logo占二维码大小的比例，仅用于QR码
-        boolean logoBorder = true; // 是否显示logo边框，仅用于QR码
-        int logoBorderColor = Color.WHITE; // logo边框颜色，仅用于QR码
-        BarcodeFormat barcodeFormat = BarcodeFormat.QR_CODE; // 条形码或二维码格式
-    }
+        // 前景色
+        @ColorInt
+        int fgColor = Color.BLACK;
+        // 背景色
+        @ColorInt
+        int bgColor = Color.WHITE;
+        // 边距
+        int margin = DEFAULT_MARGIN;
+        // 纠错级别
+        ErrorCorrectionLevel errorCorrection = DEFAULT_ERROR_CORRECTION;
+        // 二维码中心的 logo，可能为空
+        @Nullable
+        Bitmap logo;
+        // logo 尺寸比例
+        float logoSizeRatio = 0.2f;
+        // 是否显示 logo 边框
+        boolean logoBorder = true;
+        // logo 边框颜色
+        @ColorInt
+        int logoBorderColor = Color.WHITE;
+        // 条码格式
+        BarcodeFormat barcodeFormat = BarcodeFormat.QR_CODE;
 
-    /**
-     * 异步生成条形码或二维码图片。
-     *
-     * @param content  要编码的内容
-     * @param size     生成图片的尺寸
-     * @param config   配置参数，可为null
-     * @param callback 回调接口，处理生成结果
-     */
-    public static void generateAsync(String content, int size, Config config, Callback callback) {
-        new GenerateTask(content, size, config, callback).execute();
-    }
+        /**
+         * 设置前景色
+         *
+         * @param color 颜色值
+         * @return 配置对象本身
+         */
+        public Config setFgColor(@ColorInt int color) {
+            this.fgColor = color;
+            return this;
+        }
 
-    /**
-     * 同步生成条形码或二维码图片（建议在后台线程使用）。
-     *
-     * @param content 要编码的内容
-     * @param size    生成图片的尺寸
-     * @param config  配置参数，可为null
-     * @return 生成的条形码或二维码Bitmap对象
-     * @throws QRGenerationException 生成过程中发生错误时抛出
-     */
-    public static Bitmap generateSync(String content, int size, Config config) throws QRGenerationException {
-        validateInput(content, size);
+        /**
+         * 设置背景色
+         *
+         * @param color 颜色值
+         * @return 配置对象本身
+         */
+        public Config setBgColor(@ColorInt int color) {
+            this.bgColor = color;
+            return this;
+        }
 
-        try {
-            Map<EncodeHintType, Object> hints = prepareHints(config);
-            BitMatrix matrix = new MultiFormatWriter().encode(content, config.barcodeFormat, size, size, hints);
-            return config.barcodeFormat == BarcodeFormat.QR_CODE ? addLogo(renderToBitmap(matrix, config), config) : renderToBitmap(matrix, config);
-        } catch (WriterException | IllegalArgumentException e) {
-            throw new QRGenerationException("条形码或二维码生成失败", e);
+        /**
+         * 设置边距
+         *
+         * @param margin 边距值，最小为 0
+         * @return 配置对象本身
+         */
+        public Config setMargin(int margin) {
+            this.margin = Math.max(0, margin);
+            return this;
+        }
+
+        /**
+         * 设置纠错级别
+         *
+         * @param level 纠错级别
+         * @return 配置对象本身
+         */
+        public Config setErrorCorrection(ErrorCorrectionLevel level) {
+            this.errorCorrection = level;
+            return this;
+        }
+
+        /**
+         * 设置 logo
+         *
+         * @param logo 位图 logo，可能为空
+         * @return 配置对象本身
+         */
+        public Config setLogo(@Nullable Bitmap logo) {
+            this.logo = logo;
+            return this;
+        }
+
+        /**
+         * 设置 logo 尺寸比例
+         *
+         * @param ratio 比例值，范围在 0.1f 到 0.3f 之间
+         * @return 配置对象本身
+         */
+        public Config setLogoSizeRatio(float ratio) {
+            this.logoSizeRatio = clamp(ratio, 0.1f, 0.3f);
+            return this;
+        }
+
+        /**
+         * 设置是否显示 logo 边框
+         *
+         * @param showBorder 是否显示边框
+         * @return 配置对象本身
+         */
+        public Config setLogoBorder(boolean showBorder) {
+            this.logoBorder = showBorder;
+            return this;
+        }
+
+        /**
+         * 设置 logo 边框颜色
+         *
+         * @param color 颜色值
+         * @return 配置对象本身
+         */
+        public Config setLogoBorderColor(@ColorInt int color) {
+            this.logoBorderColor = color;
+            return this;
+        }
+
+        /**
+         * 设置条码格式
+         *
+         * @param format 条码格式
+         * @return 配置对象本身
+         */
+        public Config setBarcodeFormat(BarcodeFormat format) {
+            this.barcodeFormat = format;
+            return this;
         }
     }
 
     /**
-     * 将条形码或二维码保存到文件中（自动创建目录）。
+     * 异步生成条码
      *
-     * @param bitmap     要保存的条形码或二维码Bitmap对象
-     * @param outputFile 输出文件
-     * @param quality    压缩质量（仅对JPEG有效）
-     * @throws IOException 保存过程中发生错误时抛出
+     * @param content  条码内容
+     * @param size     条码尺寸
+     * @param config   生成配置，可能为空
+     * @param callback 生成结果回调
      */
-    public static void saveToFile(Bitmap bitmap, File outputFile, int quality) throws IOException {
+    public static void generateAsync(@NonNull String content, int size, @Nullable Config config, @NonNull Callback callback) {
+        SafeAsyncTask task = new SafeAsyncTask(content, size, config, callback);
+        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    /**
+     * 同步生成条码
+     *
+     * @param content 条码内容，可能为空
+     * @param size    条码尺寸
+     * @param config  生成配置，可能为空
+     * @return 生成的位图，可能为空
+     */
+    @Nullable
+    public static Bitmap generateSync(@Nullable String content, int size, @Nullable Config config) {
+        if (!validateContent(content) || !validateSize(size)) return null;
+
+        try {
+            Config finalConfig = mergeConfig(config);
+            Map<EncodeHintType, Object> hints = prepareHints(finalConfig);
+
+            BitMatrix matrix = new MultiFormatWriter().encode(content, finalConfig.barcodeFormat, size, size, hints);
+
+            Bitmap baseBitmap = renderToBitmap(matrix, finalConfig);
+            if (baseBitmap == null) return null;
+
+            return finalConfig.barcodeFormat == BarcodeFormat.QR_CODE ? addLogo(baseBitmap, finalConfig) : baseBitmap;
+        } catch (WriterException | IllegalArgumentException e) {
+            Log.e(TAG, "Generation failed: " + e.getMessage());
+        } catch (OutOfMemoryError e) {
+            handleOOMError("generateSync");
+        }
+        return null;
+    }
+
+    /**
+     * 将位图保存到文件
+     *
+     * @param context    上下文对象
+     * @param bitmap     位图，可能为空
+     * @param outputFile 输出文件
+     * @param quality    压缩质量
+     * @return 是否保存成功
+     */
+    public static boolean saveToFile(@NonNull Context context, @Nullable Bitmap bitmap, @NonNull File outputFile, int quality) {
+        if (bitmap == null || bitmap.isRecycled()) {
+            Log.w(TAG, "Invalid bitmap");
+            return false;
+        }
+
+        if (requireStoragePermission(outputFile) && !checkStoragePermission(context)) {
+            Log.e(TAG, "Storage permission denied");
+            return false;
+        }
+
         File parent = outputFile.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            throw new IOException("无法创建目录: " + parent);
+            Log.e(TAG, "Failed to create directories: " + parent);
+            return false;
         }
 
         try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-            if (!bitmap.compress(Bitmap.CompressFormat.PNG, quality, fos)) {
-                throw new IOException("压缩Bitmap失败");
+            Bitmap.CompressFormat format = guessImageFormat(outputFile.getName());
+            if (!bitmap.compress(format, quality, fos)) {
+                Log.e(TAG, "Bitmap compression failed");
+                return false;
             }
+            fos.flush();
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "File save failed: " + e.getMessage());
+        } catch (SecurityException e) {
+            Log.e(TAG, "Security exception: " + e.getMessage());
         }
+        return false;
     }
 
     /**
-     * 验证输入的内容和尺寸是否合法。
+     * 验证条码内容是否有效
      *
-     * @param content 要编码的内容
-     * @param size    生成图片的尺寸
+     * @param content 条码内容，可能为空
+     * @return 是否有效
      */
-    private static void validateInput(String content, int size) {
-        if (content == null || content.isEmpty()) {
-            throw new IllegalArgumentException("内容不能为空");
+    private static boolean validateContent(@Nullable String content) {
+        if (content == null || content.trim().isEmpty()) {
+            Log.w(TAG, "Content cannot be empty");
+            return false;
         }
-        if (size <= 0) {
-            throw new IllegalArgumentException("尺寸必须为正数");
-        }
+        return true;
     }
 
     /**
-     * 准备编码所需的提示信息。
+     * 验证条码尺寸是否有效
      *
-     * @param config 配置参数，可为null
-     * @return 包含提示信息的Map
+     * @param size 条码尺寸
+     * @return 是否有效
      */
-    private static Map<EncodeHintType, Object> prepareHints(Config config) {
+    private static boolean validateSize(int size) {
+        if (size <= 0 || size > MAX_SIZE) {
+            Log.w(TAG, "Invalid size: " + size + ", valid range: [1, " + MAX_SIZE + "]");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 合并配置
+     *
+     * @param input 输入配置，可能为空
+     * @return 合并后的配置
+     */
+    @NonNull
+    private static Config mergeConfig(@Nullable Config input) {
+        Config config = new Config();
+        if (input == null) return config;
+
+        config.fgColor = input.fgColor;
+        config.bgColor = input.bgColor;
+        config.margin = input.margin > 0 ? input.margin : DEFAULT_MARGIN;
+        config.errorCorrection = input.errorCorrection != null ? input.errorCorrection : DEFAULT_ERROR_CORRECTION;
+        config.logo = input.logo != null && !input.logo.isRecycled() ? input.logo : null;
+        config.logoSizeRatio = clamp(input.logoSizeRatio, 0.1f, 0.3f);
+        config.logoBorder = input.logoBorder;
+        config.logoBorderColor = input.logoBorderColor;
+        config.barcodeFormat = input.barcodeFormat != null ? input.barcodeFormat : BarcodeFormat.QR_CODE;
+        return config;
+    }
+
+    /**
+     * 限制值在指定范围内
+     *
+     * @param value 要限制的值
+     * @param min   最小值
+     * @param max   最大值
+     * @return 限制后的值
+     */
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    /**
+     * 准备编码提示信息
+     *
+     * @param config 配置对象
+     * @return 编码提示信息
+     */
+    @NonNull
+    private static Map<EncodeHintType, Object> prepareHints(@NonNull Config config) {
         Map<EncodeHintType, Object> hints = new HashMap<>();
         hints.put(EncodeHintType.CHARACTER_SET, DEFAULT_CHARSET);
-        hints.put(EncodeHintType.MARGIN, config != null ? config.margin : DEFAULT_MARGIN);
-        if (config != null && config.errorCorrection != null && config.barcodeFormat == BarcodeFormat.QR_CODE) {
+        hints.put(EncodeHintType.MARGIN, config.margin);
+
+        if (config.barcodeFormat == BarcodeFormat.QR_CODE) {
             hints.put(EncodeHintType.ERROR_CORRECTION, config.errorCorrection);
         }
-        return hints;
+        return Collections.unmodifiableMap(hints);
     }
 
     /**
-     * 将BitMatrix渲染为Bitmap对象。
+     * 将 BitMatrix 渲染为位图
      *
-     * @param matrix 要渲染的BitMatrix
-     * @param config 配置参数
-     * @return 渲染后的Bitmap对象
+     * @param matrix BitMatrix 对象
+     * @param config 配置对象
+     * @return 生成的位图，可能为空
      */
-    private static Bitmap renderToBitmap(BitMatrix matrix, Config config) {
-        int width = matrix.getWidth();
-        int height = matrix.getHeight();
-        int[] pixels = new int[width * height];
-        int fgColor = config.fgColor;
-        int bgColor = config.bgColor;
+    @Nullable
+    private static Bitmap renderToBitmap(@NonNull BitMatrix matrix, @NonNull Config config) {
+        try {
+            int width = matrix.getWidth();
+            int height = matrix.getHeight();
+            int[] pixels = new int[width * height];
 
-        for (int y = 0; y < height; y++) {
-            int offset = y * width;
-            for (int x = 0; x < width; x++) {
-                pixels[offset + x] = matrix.get(x, y) ? fgColor : bgColor;
+            for (int y = 0; y < height; y++) {
+                int offset = y * width;
+                for (int x = 0; x < width; x++) {
+                    pixels[offset + x] = matrix.get(x, y) ? config.fgColor : config.bgColor;
+                }
             }
-        }
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        bitmap.setPixels(pixels, 0, width, 0, 0, width, height);
-        return bitmap;
+            return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888);
+        } catch (OutOfMemoryError e) {
+            handleOOMError("renderToBitmap");
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Invalid bitmap parameters: " + e.getMessage());
+        }
+        return null;
     }
 
     /**
-     * 为二维码添加logo。
+     * 为二维码添加 logo
      *
-     * @param qrBitmap 二维码Bitmap对象
-     * @param config   配置参数
-     * @return 添加logo后的二维码Bitmap对象
+     * @param qrBitmap 二维码位图
+     * @param config   配置对象
+     * @return 添加 logo 后的位图，可能未改变
      */
-    private static Bitmap addLogo(Bitmap qrBitmap, Config config) {
-        if (config.logo == null) return qrBitmap;
+    @Nullable
+    private static Bitmap addLogo(@NonNull Bitmap qrBitmap, @NonNull Config config) {
+        if (config.logo == null || config.logo.isRecycled()) return qrBitmap;
 
-        int qrSize = qrBitmap.getWidth();
-        int logoSize = (int) (qrSize * config.logoSizeRatio);
-        Bitmap scaledLogo = Bitmap.createScaledBitmap(config.logo, logoSize, logoSize, true);
+        try {
+            Canvas canvas = new Canvas(qrBitmap);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        Canvas canvas = new Canvas(qrBitmap);
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            int qrSize = qrBitmap.getWidth();
+            int logoSize = (int) (qrSize * config.logoSizeRatio);
+            Bitmap scaledLogo = Bitmap.createScaledBitmap(config.logo, logoSize, logoSize, true);
 
-        if (config.logoBorder) {
-            paint.setColor(config.logoBorderColor);
-            float borderSize = logoSize * 0.1f;
-            canvas.drawCircle(qrSize / 2f, qrSize / 2f, logoSize / 2f + borderSize, paint);
+            if (config.logoBorder) {
+                drawLogoBorder(canvas, qrSize, logoSize, config.logoBorderColor, paint);
+            }
+
+            RectF destRect = new RectF((qrSize - logoSize) / 2f, (qrSize - logoSize) / 2f, (qrSize + logoSize) / 2f, (qrSize + logoSize) / 2f);
+            canvas.drawBitmap(scaledLogo, null, destRect, paint);
+            return qrBitmap;
+        } catch (Exception e) {
+            Log.e(TAG, "Logo addition failed: " + e.getMessage());
+            return qrBitmap;
         }
-
-        RectF logoRect = new RectF((qrSize - logoSize) / 2f, (qrSize - logoSize) / 2f, (qrSize + logoSize) / 2f, (qrSize + logoSize) / 2f);
-        canvas.drawBitmap(scaledLogo, null, logoRect, paint);
-
-        return qrBitmap;
     }
 
     /**
-     * 异步任务类，用于异步生成条形码或二维码。
+     * 绘制 logo 边框
+     *
+     * @param canvas      画布对象
+     * @param qrSize      二维码尺寸
+     * @param logoSize    logo 尺寸
+     * @param borderColor 边框颜色
+     * @param paint       画笔对象
      */
-    private static class GenerateTask extends AsyncTask<Void, Void, Bitmap> {
-        private final String content;
-        private final int size;
-        private final Config config;
-        private final Callback callback;
-        private Exception exception;
+    private static void drawLogoBorder(Canvas canvas, int qrSize, int logoSize, int borderColor, Paint paint) {
+        paint.setColor(borderColor);
+        float borderWidth = logoSize * 0.1f;
+        float radius = logoSize / 2f + borderWidth;
+        canvas.drawCircle(qrSize / 2f, qrSize / 2f, radius, paint);
+    }
 
-        GenerateTask(String content, int size, Config config, Callback callback) {
+    /**
+     * 判断是否需要存储权限
+     *
+     * @param outputFile 输出文件
+     * @return 是否需要权限
+     */
+    private static boolean requireStoragePermission(File outputFile) {
+        return isExternalStoragePath(outputFile.getAbsolutePath());
+    }
+
+    /**
+     * 判断路径是否为外部存储路径
+     *
+     * @param path 路径
+     * @return 是否为外部存储路径
+     */
+    private static boolean isExternalStoragePath(String path) {
+        return path.startsWith("/storage/") || path.startsWith(Environment.getExternalStorageDirectory().getAbsolutePath());
+    }
+
+    /**
+     * 检查存储权限
+     *
+     * @param context 上下文对象
+     * @return 是否有存储权限
+     */
+    private static boolean checkStoragePermission(@NonNull Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager() || hasPermission(context, Manifest.permission.MANAGE_EXTERNAL_STORAGE);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return hasPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) && hasPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        } else {
+            return hasPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+    }
+
+    /**
+     * 检查是否有指定权限
+     *
+     * @param context    上下文对象
+     * @param permission 权限名称
+     * @return 是否有该权限
+     */
+    private static boolean hasPermission(Context context, String permission) {
+        return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * 猜测图片格式
+     *
+     * @param fileName 文件名
+     * @return 图片压缩格式
+     */
+    @NonNull
+    private static Bitmap.CompressFormat guessImageFormat(@NonNull String fileName) {
+        String ext = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase() : "";
+
+        switch (ext) {
+            case "jpg":
+            case "jpeg":
+                return Bitmap.CompressFormat.JPEG;
+            case "webp":
+                return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ? Bitmap.CompressFormat.WEBP_LOSSY : Bitmap.CompressFormat.WEBP;
+            default:
+                return Bitmap.CompressFormat.PNG;
+        }
+    }
+
+    /**
+     * 处理内存溢出错误
+     *
+     * @param methodName 发生错误的方法名
+     */
+    private static void handleOOMError(String methodName) {
+        Log.e(TAG, "OOM in " + methodName + ", suggest reducing image size");
+        System.gc();
+    }
+
+    /**
+     * 安全异步任务类
+     */
+    private static class SafeAsyncTask extends AsyncTask<Void, Void, Bitmap> {
+        // 回调弱引用
+        private final WeakReference<Callback> callbackRef;
+        // 条码内容
+        private final String content;
+        // 条码尺寸
+        private final int size;
+        // 配置对象
+        private final Config config;
+        // 错误信息
+        private String errorMsg;
+
+        /**
+         * 构造函数
+         *
+         * @param content  条码内容
+         * @param size     条码尺寸
+         * @param config   配置对象，可能为空
+         * @param callback 回调对象
+         */
+        SafeAsyncTask(@NonNull String content, int size, @Nullable Config config, @NonNull Callback callback) {
             this.content = content;
-            this.size = size;
-            this.config = config;
-            this.callback = callback;
+            this.size = Math.min(size, MAX_SIZE);
+            this.config = config != null ? config : new Config();
+            this.callbackRef = new WeakReference<>(callback);
         }
 
         @Override
         protected Bitmap doInBackground(Void... voids) {
-            try {
-                return generateSync(content, size, config);
-            } catch (QRGenerationException e) {
-                exception = e;
-                return null;
-            }
+            return generateSync(content, size, config);
         }
 
         @Override
-        protected void onPostExecute(Bitmap result) {
+        protected void onPostExecute(@Nullable Bitmap result) {
+            Callback callback = callbackRef.get();
+            if (callback == null) return;
+
             if (result != null) {
-                callback.onSuccess(result);
+                postSuccess(callback, result);
             } else {
-                callback.onFailure(exception != null ? exception : new Exception("未知错误"));
+                postFailure(callback, errorMsg != null ? errorMsg : "Generation failed");
             }
         }
-    }
 
-    /**
-     * 自定义异常类，用于表示条形码或二维码生成过程中发生的错误。
-     */
-    public static class QRGenerationException extends Exception {
-        QRGenerationException(String message, Throwable cause) {
-            super(message, cause);
+        /**
+         * 发布成功结果
+         *
+         * @param callback 回调对象
+         * @param bitmap   生成的位图，可能为空
+         */
+        private void postSuccess(@NonNull Callback callback, @Nullable Bitmap bitmap) {
+            if (isMainThread()) {
+                callback.onSuccess(bitmap);
+            } else {
+                MAIN_HANDLER.post(() -> callback.onSuccess(bitmap));
+            }
+        }
+
+        /**
+         * 发布失败结果
+         *
+         * @param callback 回调对象
+         * @param msg      错误信息
+         */
+        private void postFailure(@NonNull Callback callback, @NonNull String msg) {
+            if (isMainThread()) {
+                callback.onFailure(msg);
+            } else {
+                MAIN_HANDLER.post(() -> callback.onFailure(msg));
+            }
+        }
+
+        /**
+         * 判断是否为主线程
+         *
+         * @return 是否为主线程
+         */
+        private boolean isMainThread() {
+            return Looper.myLooper() == Looper.getMainLooper();
         }
     }
 }

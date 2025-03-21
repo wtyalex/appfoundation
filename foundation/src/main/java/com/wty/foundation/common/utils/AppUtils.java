@@ -1,24 +1,30 @@
 package com.wty.foundation.common.utils;
 
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.pm.Signature;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
-import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
+
+import androidx.core.content.FileProvider;
 
 import com.wty.foundation.common.init.AppContext;
 
+import java.io.File;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,372 +35,486 @@ public class AppUtils {
     private static final Map<String, Object> CACHE = new ConcurrentHashMap<>();
 
     /**
+     * 获取应用程序上下文
+     *
+     * @return 应用程序上下文，若为空则日志报错
+     */
+    private static Context getContext() {
+        Context context = AppContext.getInstance().getContext();
+        if (context == null) {
+            Log.e(TAG, "严重错误：全局应用上下文为空，请检查 AppContext 初始化");
+        }
+        return context;
+    }
+
+    /**
      * 获取应用程序名称
      *
-     * @return 应用程序名称，获取失败时返回空字符串 ""
+     * @return 应用名称，获取失败则返回空字符串
      */
     public static String getAppName() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
+            Log.w(TAG, "getAppName() 中止：上下文为空");
             return "";
         }
-        if (CACHE.containsKey("appName")) {
-            return (String) CACHE.get("appName");
+
+        Object cached = CACHE.get("appName");
+        if (cached instanceof String) {
+            return (String) cached;
         }
+
         try {
-            PackageManager packageManager = context.getPackageManager();
-            PackageInfo packageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
-            int labelRes = packageInfo.applicationInfo.labelRes;
-            String appName = context.getResources().getString(labelRes);
+            PackageManager pm = context.getPackageManager();
+            ApplicationInfo appInfo = pm.getApplicationInfo(context.getPackageName(), 0);
+            String appName = pm.getApplicationLabel(appInfo).toString();
             CACHE.put("appName", appName);
             return appName;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "未找到应用包名对应的应用名称：" + context.getPackageName(), e);
         } catch (Exception e) {
-            Log.e(TAG, "getAppName failed", e);
+            Log.e(TAG, "获取应用名称时出现意外错误", e);
         }
         return "";
     }
 
     /**
-     * 获取应用程序版本名称
+     * 获取版本名称
      *
-     * @return 应用程序版本名称，获取失败时返回空字符串 ""
+     * @return 版本名称，获取失败则返回空字符串
      */
     public static String getVersionName() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
+            Log.w(TAG, "getVersionName() 中止：上下文为空");
             return "";
         }
-        if (CACHE.containsKey("versionName")) {
-            return (String) CACHE.get("versionName");
+
+        Object cached = CACHE.get("versionName");
+        if (cached instanceof String) {
+            return (String) cached;
         }
+
         try {
-            PackageManager packageManager = context.getPackageManager();
-            PackageInfo packageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
-            String versionName = packageInfo.versionName;
-            CACHE.put("versionName", versionName);
-            return versionName;
-        } catch (Exception e) {
-            Log.e(TAG, "getVersionName failed", e);
+            PackageInfo pkgInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            String version = pkgInfo.versionName != null ? pkgInfo.versionName : "";
+            CACHE.put("versionName", version);
+            return version;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "未找到应用包名：" + context.getPackageName(), e);
         }
         return "";
     }
 
     /**
-     * 获取应用程序版本号
+     * 获取版本号
      *
-     * @return 应用程序版本号，获取失败时返回 -1
+     * @return 版本号，获取失败则返回 -1L
      */
-    public static int getVersionCode() {
-        Context context = AppContext.getInstance().getContext();
+    public static long getVersionCode() {
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
-            return -1;
+            Log.w(TAG, "getVersionCode() 中止：上下文为空");
+            return -1L;
         }
-        if (CACHE.containsKey("versionCode")) {
-            return (int) CACHE.get("versionCode");
+
+        Object cached = CACHE.get("versionCode");
+        if (cached instanceof Long) {
+            return (Long) cached;
         }
+
         try {
-            PackageManager packageManager = context.getPackageManager();
-            PackageInfo packageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
-            int versionCode = packageInfo.versionCode;
-            CACHE.put("versionCode", versionCode);
-            return versionCode;
-        } catch (Exception e) {
-            Log.e(TAG, "getVersionCode failed", e);
+            PackageInfo pkgInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            long code;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                code = pkgInfo.getLongVersionCode();
+            } else {
+                code = pkgInfo.versionCode;
+            }
+
+            CACHE.put("versionCode", code);
+            return code;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "未找到应用包名：" + context.getPackageName(), e);
         }
-        return -1;
+        return -1L;
     }
 
     /**
-     * 获取应用程序包名
+     * 获取包名
      *
-     * @return 应用程序包名，获取失败时返回空字符串 ""
+     * @return 包名，上下文为空则返回空字符串
      */
     public static String getPackageName() {
-        Context context = AppContext.getInstance().getContext();
-        if (context == null) {
-            Log.e(TAG, "Context is null");
-            return "";
-        }
-        return context.getPackageName();
+        Context context = getContext();
+        return context != null ? context.getPackageName() : "";
     }
 
     /**
-     * 获取应用程序图标 Bitmap
+     * 获取应用图标
      *
-     * @return 应用程序图标 Bitmap，获取失败时返回空 Bitmap
+     * @return 应用图标对应的 Bitmap，获取失败则返回空 Bitmap
      */
     public static Bitmap getAppIconBitmap() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
-            return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); // 返回一个空 Bitmap
+            Log.w(TAG, "getAppIconBitmap() 中止：上下文为空");
+            return createEmptyBitmap();
         }
-        PackageManager packageManager = context.getPackageManager();
+
         try {
-            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(context.getPackageName(), 0);
-            Drawable d = packageManager.getApplicationIcon(applicationInfo);
-            if (d instanceof BitmapDrawable) {
-                return ((BitmapDrawable) d).getBitmap();
-            }
-            // 如果不是 BitmapDrawable，尝试将 Drawable 转换为 Bitmap
-            Bitmap bitmap = Bitmap.createBitmap(d.getIntrinsicWidth(), d.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
-            d.setBounds(0, 0, bitmap.getWidth(), bitmap.getHeight());
-            d.draw(new android.graphics.Canvas(bitmap));
-            return bitmap;
+            Drawable icon = context.getPackageManager().getApplicationIcon(context.getPackageName());
+            return drawableToBitmap(icon);
         } catch (PackageManager.NameNotFoundException e) {
-            Log.e(TAG, "getAppIconBitmap failed", e);
+            Log.e(TAG, "未找到应用包名对应的应用图标：" + context.getPackageName(), e);
         }
-        return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888); // 返回一个空 Bitmap
+        return createEmptyBitmap();
     }
 
     /**
-     * 获取应用安装时间
+     * 创建空位图
      *
-     * @return 应用安装时间（毫秒），获取失败时返回 -1
+     * @return 一个 1x1 的 ARGB_8888 格式的空 Bitmap
+     */
+    private static Bitmap createEmptyBitmap() {
+        return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+    }
+
+    /**
+     * 将 Drawable 转换为 Bitmap
+     *
+     * @param drawable 要转换的 Drawable 对象
+     * @return 转换后的 Bitmap 对象
+     */
+    private static Bitmap drawableToBitmap(Drawable drawable) {
+        if (drawable instanceof BitmapDrawable) {
+            return ((BitmapDrawable) drawable).getBitmap();
+        }
+
+        int width = Math.max(drawable.getIntrinsicWidth(), 1);
+        int height = Math.max(drawable.getIntrinsicHeight(), 1);
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, width, height);
+        drawable.draw(canvas);
+        return bitmap;
+    }
+
+    /**
+     * 获取安装时间（毫秒级精度）
+     *
+     * @return 安装时间，获取失败则返回 -1L
      */
     public static long getAppInstallTime() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
-            return -1;
+            Log.w(TAG, "getAppInstallTime() 中止：上下文为空");
+            return -1L;
         }
-        if (CACHE.containsKey("appInstallTime")) {
-            return (long) CACHE.get("appInstallTime");
+
+        Object cached = CACHE.get("appInstallTime");
+        if (cached instanceof Long) {
+            return (Long) cached;
         }
+
         try {
-            PackageManager packageManager = context.getPackageManager();
-            PackageInfo packageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
-            long installTime = packageInfo.firstInstallTime;
-            CACHE.put("appInstallTime", installTime);
-            return installTime;
-        } catch (Exception e) {
-            Log.e(TAG, "getAppInstallTime failed", e);
+            PackageInfo pkgInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            long time = pkgInfo.firstInstallTime;
+            CACHE.put("appInstallTime", time);
+            return time;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "未找到应用包名：" + context.getPackageName(), e);
         }
-        return -1;
+        return -1L;
     }
 
     /**
-     * 获取应用更新时间
+     * 获取更新时间
      *
-     * @return 应用更新时间（毫秒），获取失败时返回 -1
+     * @return 更新时间，获取失败则返回 -1L
      */
     public static long getAppUpdateTime() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
-            return -1;
+            Log.w(TAG, "getAppUpdateTime() 中止：上下文为空");
+            return -1L;
         }
-        if (CACHE.containsKey("appUpdateTime")) {
-            return (long) CACHE.get("appUpdateTime");
+
+        Object cached = CACHE.get("appUpdateTime");
+        if (cached instanceof Long) {
+            return (Long) cached;
         }
+
         try {
-            PackageManager packageManager = context.getPackageManager();
-            PackageInfo packageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
-            long updateTime = packageInfo.lastUpdateTime;
-            CACHE.put("appUpdateTime", updateTime);
-            return updateTime;
-        } catch (Exception e) {
-            Log.e(TAG, "getAppUpdateTime failed", e);
+            PackageInfo pkgInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            long time = pkgInfo.lastUpdateTime;
+            CACHE.put("appUpdateTime", time);
+            return time;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "未找到应用包名：" + context.getPackageName(), e);
         }
-        return -1;
+        return -1L;
     }
 
     /**
-     * 判断应用是否为系统应用
+     * 判断是否为系统应用
      *
-     * @return true：系统应用，false：非系统应用，获取失败时返回 false
+     * @return 是否为系统应用，获取失败则返回 false
      */
     public static boolean isSystemApp() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
+            Log.w(TAG, "isSystemApp() 中止：上下文为空");
             return false;
         }
+
         try {
-            PackageManager packageManager = context.getPackageManager();
-            ApplicationInfo applicationInfo = packageManager.getApplicationInfo(context.getPackageName(), 0);
-            return (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-        } catch (Exception e) {
-            Log.e(TAG, "isSystemApp failed", e);
+            ApplicationInfo appInfo = context.getPackageManager().getApplicationInfo(context.getPackageName(), 0);
+            return (appInfo.flags & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "未找到应用包名：" + context.getPackageName(), e);
         }
         return false;
     }
 
     /**
-     * 获取应用签名信息
+     * 获取应用签名
      *
-     * @return 应用签名信息的 MD5 值，获取失败时返回空字符串 ""
+     * @return 应用签名的 MD5 值，获取失败则返回空字符串
      */
     public static String getAppSignature() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
+            Log.w(TAG, "getAppSignature() 中止：上下文为空");
             return "";
         }
-        if (CACHE.containsKey("appSignature")) {
-            return (String) CACHE.get("appSignature");
+
+        Object cached = CACHE.get("appSignature");
+        if (cached instanceof String) {
+            return (String) cached;
         }
+
         try {
-            PackageManager packageManager = context.getPackageManager();
-            PackageInfo packageInfo = packageManager.getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNATURES);
-            Signature[] signatures = packageInfo.signatures;
-            if (signatures != null && signatures.length > 0) {
-                String signatureMd5 = getSignatureMd5(signatures[0]);
-                CACHE.put("appSignature", signatureMd5);
-                return signatureMd5;
+            PackageInfo pkgInfo = context.getPackageManager().getPackageInfo(context.getPackageName(), PackageManager.GET_SIGNATURES);
+
+            if (pkgInfo.signatures == null || pkgInfo.signatures.length == 0) {
+                Log.e(TAG, "未找到应用包名对应的签名：" + context.getPackageName());
+                return "";
             }
-        } catch (Exception e) {
-            Log.e(TAG, "getAppSignature failed", e);
+
+            // 优先使用 V2 及以上签名方案
+            Signature signature = pkgInfo.signatures[0];
+            String md5 = calculateMd5(signature.toByteArray());
+            CACHE.put("appSignature", md5);
+            return md5;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "未找到应用包名：" + context.getPackageName(), e);
         }
         return "";
     }
 
     /**
-     * 将签名信息转换为 MD5 值
+     * 计算 MD5 值
      *
-     * @param signature 签名信息
-     * @return MD5 值，转换失败时返回空字符串 ""
+     * @param data 要计算 MD5 的字节数组
+     * @return MD5 字符串，计算失败则返回空字符串
      */
-    private static String getSignatureMd5(Signature signature) {
+    private static String calculateMd5(byte[] data) {
         try {
             MessageDigest digest = MessageDigest.getInstance("MD5");
-            byte[] bytes = digest.digest(signature.toByteArray());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                sb.append(String.format("%02x", b));
+            digest.update(data);
+            byte[] hash = digest.digest();
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) {
+                String s = Integer.toHexString(0xFF & b);
+                if (s.length() == 1) {
+                    hex.append('0');
+                }
+                hex.append(s);
             }
-            return sb.toString();
+            return hex.toString();
         } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "getSignatureMd5 failed", e);
+            Log.e(TAG, "MD5 算法不可用", e);
         }
         return "";
-    }
-
-    /**
-     * 检查应用是否具有指定权限
-     *
-     * @param permission 权限名称
-     * @return 是否具有指定权限
-     */
-    public static boolean checkPermission(String permission) {
-        Context context = AppContext.getInstance().getContext();
-        if (context == null || permission == null || permission.isEmpty()) {
-            Log.e(TAG, "Context or permission is null");
-            return false;
-        }
-        return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    /**
-     * 请求安装未知来源的应用
-     */
-    public static void requestInstallFromUnknownSources() {
-        Context context = AppContext.getInstance().getContext();
-        if (context == null) {
-            Log.e(TAG, "Context is null");
-            return;
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
-            intent.setData(Uri.parse("package:" + context.getPackageName()));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            // 对于 Android 4.2 到 Android 7.1 版本
-            Intent intent = new Intent(Settings.ACTION_SECURITY_SETTINGS);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(intent);
-        }
     }
 
     /**
      * 卸载应用
      *
-     * @param packageName 应用包名
+     * @param packageName 要卸载应用的包名
      */
     public static void uninstallApp(String packageName) {
-        Context context = AppContext.getInstance().getContext();
-        if (context == null || packageName == null || packageName.isEmpty()) {
-            Log.e(TAG, "Context or packageName is null");
+        if (TextUtils.isEmpty(packageName)) {
+            Log.e(TAG, "uninstallApp() 失败：包名不能为空");
             return;
         }
-        Uri packageURI = Uri.parse("package:" + packageName);
-        Intent uninstallIntent = new Intent(Intent.ACTION_DELETE, packageURI);
-        uninstallIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(uninstallIntent);
-    }
 
-    /**
-     * 安装APK文件
-     * <p>
-     * 在 Android 系统中安装 APK 文件，需要根据不同的 Android 版本和 APK 文件的存储位置，获取相应的权限：
-     * <ul>
-     *     <li>对于 Android 6.0（API 级别 23）及以上版本，如果 APK 文件存储在外部存储设备（如 SD 卡），
-     *         需要在 AndroidManifest.xml 中声明 {@code <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>} 权限，
-     *         并且在运行时动态请求该权限，以读取 APK 文件。</li>
-     *     <li>对于 Android 8.0（API 级别 26）及以上版本，如果要安装来自未知来源（非官方应用商店）的应用，
-     *         需要请求 {@code android.Manifest.permission.REQUEST_INSTALL_UNKNOWN_SOURCES} 权限，
-     *         可以通过调用 Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES 来引导用户开启该权限。</li>
-     *     <li>在 Android 7.0（API 级别 24）及以上版本，当使用 FileProvider 来共享 APK 文件的 Uri 时，
-     *         还需要在 Intent 中设置 {@code Intent.FLAG_GRANT_READ_URI_PERMISSION} 标志，
-     *         以授予目标应用读取该 Uri 对应的文件的权限。</li>
-     * </ul>
-     *
-     * @param apkFileUri APK文件的Uri
-     */
-    public static void installApk(Uri apkFileUri) {
-        Context context = AppContext.getInstance().getContext();
-        if (context == null || apkFileUri == null) {
-            Log.e(TAG, "Context or apkFileUri is null");
-            return;
-        }
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        }
-        intent.setDataAndType(apkFileUri, "application/vnd.android.package-archive");
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(intent);
-    }
-
-    /**
-     * 获取应用请求的权限列表
-     *
-     * @return 应用请求的权限列表，获取失败时返回空列表
-     */
-    public static List<String> getRequestedPermissions() {
-        Context context = AppContext.getInstance().getContext();
+        Context context = getContext();
         if (context == null) {
-            Log.e(TAG, "Context is null");
-            return Collections.emptyList();
+            Log.e(TAG, "uninstallApp() 中止：上下文为空");
+            return;
         }
-        PackageManager pm = context.getPackageManager();
+
         try {
-            PackageInfo packageInfo = pm.getPackageInfo(context.getPackageName(), PackageManager.GET_PERMISSIONS);
-            if (packageInfo.requestedPermissions != null) {
-                return Arrays.asList(packageInfo.requestedPermissions);
+            // 检查是否具有请求卸载应用的权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.getPackageManager().canRequestPackageInstalls()) {
+                Log.w(TAG, "缺少请求卸载应用的权限");
+                return;
             }
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e(TAG, "getRequestedPermissions failed", e);
+
+            Intent intent = new Intent(Intent.ACTION_DELETE).setData(Uri.parse("package:" + packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            if (intent.resolveActivity(context.getPackageManager()) != null) {
+                context.startActivity(intent);
+            } else {
+                Log.e(TAG, "未找到用于卸载包名对应的应用的活动：" + packageName);
+            }
+        } catch (ActivityNotFoundException e) {
+            Log.e(TAG, "未找到用于卸载包名对应的应用的活动：" + packageName, e);
+        } catch (SecurityException e) {
+            Log.e(TAG, "卸载应用时出现安全异常：" + packageName, e);
         }
-        return Collections.emptyList();
     }
 
     /**
-     * 获取所有已安装的应用程序信息
+     * 安装 APK，通过 Uri
      *
-     * @return 所有已安装的应用程序信息列表，获取失败时返回空列表
+     * @param context 上下文对象
+     * @param apkUri  APK 文件的 Uri
      */
-    public static List<ApplicationInfo> getAllInstalledApplications() {
-        Context context = AppContext.getInstance().getContext();
+    public static void installApk(Context context, Uri apkUri) {
+        if (context == null || apkUri == null) {
+            Log.e(TAG, "installApk() 失败：参数无效");
+            return;
+        }
+
+        try {
+            // 检查是否具有请求安装应用的权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.getPackageManager().canRequestPackageInstalls()) {
+                Log.w(TAG, "缺少请求安装应用的权限");
+                return;
+            }
+
+            Intent intent = new Intent(Intent.ACTION_VIEW).setDataAndType(apkUri, "application/vnd.android.package-archive").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            // 对于 N 及以上版本需要特别处理 Uri 权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                List<ResolveInfo> resInfoList = context.getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+                for (ResolveInfo resolveInfo : resInfoList) {
+                    String packageName = resolveInfo.activityInfo.packageName;
+                    context.grantUriPermission(packageName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                }
+            }
+
+            if (intent.resolveActivity(context.getPackageManager()) != null) {
+                context.startActivity(intent);
+            } else {
+                Log.e(TAG, "未找到处理 APK 安装的活动");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "APK 安装失败，Uri 为：" + apkUri, e);
+        }
+    }
+
+    /**
+     * 安装 APK，通过 File
+     *
+     * @param context 上下文对象
+     * @param apkFile APK 文件对象
+     */
+    public static void installApk(Context context, File apkFile) {
+        // 检查参数有效性和文件是否存在
+        if (context == null || apkFile == null || !apkFile.exists()) {
+            Log.e(TAG, "installApk() 失败：参数无效或文件不存在");
+            return;
+        }
+
+        try {
+            // 检查是否具有请求安装应用的权限
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.getPackageManager().canRequestPackageInstalls()) {
+                Log.w(TAG, "缺少请求安装应用的权限");
+                return;
+            }
+
+            Uri apkUri;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                // 对于 Android 7.0 及以上版本，使用 FileProvider 获取 content URI
+                apkUri = FileProvider.getUriForFile(context, context.getPackageName() + ".provider", apkFile);
+            } else {
+                // 对于 Android 7.0 以下版本，使用 Uri.fromFile
+                apkUri = Uri.fromFile(apkFile);
+            }
+
+            // 创建安装 APK 的意图
+            Intent intent = new Intent(Intent.ACTION_VIEW).setDataAndType(apkUri, "application/vnd.android.package-archive").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                // 为 Android 7.0 及以上版本添加读取 URI 的权限
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                // 查询能够处理该意图的活动
+                List<ResolveInfo> resInfoList = context.getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+                for (ResolveInfo resolveInfo : resInfoList) {
+                    String packageName = resolveInfo.activityInfo.packageName;
+                    // 为每个能够处理该意图的应用授予读取 URI 的权限
+                    context.grantUriPermission(packageName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                }
+            }
+
+            // 检查是否有活动可以处理该意图
+            if (intent.resolveActivity(context.getPackageManager()) != null) {
+                // 启动安装活动
+                context.startActivity(intent);
+            } else {
+                Log.e(TAG, "未找到处理 APK 安装的活动");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "APK 安装失败，文件路径为：" + apkFile.getAbsolutePath(), e);
+        }
+    }
+
+    /**
+     * 获取已安装应用列表
+     *
+     * @param includeSystemApps 是否包含系统应用，true 表示包含，false 表示不包含
+     * @return 已安装应用的列表，获取失败则返回空列表
+     */
+    public static List<ApplicationInfo> getAllInstalledApps(boolean includeSystemApps) {
+        // 获取上下文对象
+        Context context = getContext();
+        // 检查上下文对象是否为空
         if (context == null) {
-            Log.e(TAG, "Context is null");
+            Log.w(TAG, "getAllInstalledApps() 中止：上下文为空");
             return Collections.emptyList();
         }
-        PackageManager pm = context.getPackageManager();
-        return pm.getInstalledApplications(PackageManager.GET_META_DATA);
+
+        // 获取包管理器
+        final PackageManager pm = context.getPackageManager();
+        List<ApplicationInfo> apps;
+
+        try {
+            // 获取所有已安装应用的信息
+            apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+        } catch (Exception e) {
+            Log.e(TAG, "获取已安装应用信息失败", e);
+            return Collections.emptyList();
+        }
+
+        // 如果需要包含系统应用，直接返回所有应用列表
+        if (includeSystemApps) {
+            return new ArrayList<>(apps);
+        }
+
+        // 过滤出用户应用
+        List<ApplicationInfo> filtered = new ArrayList<>();
+        for (ApplicationInfo app : apps) {
+            // 判断是否为用户应用而非系统应用
+            if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0 || (app.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) {
+                filtered.add(app);
+            }
+        }
+        return filtered;
     }
 }

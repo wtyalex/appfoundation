@@ -1,470 +1,875 @@
 package com.wty.foundation.common.utils;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
+import android.util.Log;
+import android.util.Patterns;
 
-import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
+import com.wty.foundation.common.init.AppContext;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.io.SyncFailedException;
+import java.lang.ref.WeakReference;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicReference;
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.ConnectionSpec;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
- * 用于管理文件下载任务，支持断点续传、重试、并发控制、暂停和恢复下载等功能，
- * 可检查资源可达性和部分内容支持，实时反馈下载进度、速度、暂停和恢复状态。
+ * 下载管理器，支持多任务、断点续传、智能重试和完整性校验
  */
 public class DownloadUtils {
     private static final String TAG = "DownloadUtils";
-    private OkHttpClient okHttpClient;
-    // 存储正在进行的下载任务，键为唯一标识，值为对应的 CallInfo 对象
-    private ConcurrentHashMap<String, CallInfo> downloadTasks = new ConcurrentHashMap<>();
-    // 信号量，控制最大并发下载数
-    private final Semaphore downloadSemaphore = new Semaphore(5);
+    // 下载超时时间，单位毫秒
+    private static final long DOWNLOAD_TIMEOUT_MS = 60000;
+    // 最大并发下载任务数
+    private static final int MAX_CONCURRENT_DOWNLOADS = 5;
     // 最大重试次数
-    private final int MAX_RETRIES = 3;
+    private static final int MAX_RETRIES = 3;
+    // 缓冲区大小
+    private static final int BUFFER_SIZE = 8192;
+    // 最小进度更新间隔，单位毫秒
+    private static final long MIN_PROGRESS_UPDATE_INTERVAL = 300;
+
+    private final OkHttpClient client;
+    // 存储活跃的下载任务上下文
+    private final ConcurrentHashMap<String, TaskContext> activeTasks = new ConcurrentHashMap<>();
+    // 控制并发下载任务数的信号量
+    private final Semaphore concurrencySemaphore = new Semaphore(MAX_CONCURRENT_DOWNLOADS, true);
+    private static volatile DownloadUtils instance;
+    // 用于在主线程处理任务的Handler
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    // 用于超时监控的Handler
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
 
     /**
-     * 默认构造函数，创建具有默认超时配置的 OkHttpClient。
+     * 获取下载工具单例实例
+     *
+     * @return DownloadUtils实例
      */
-    public DownloadUtils() {
-        this(new OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).writeTimeout(15, TimeUnit.SECONDS).readTimeout(15, TimeUnit.SECONDS).build());
+    public static DownloadUtils getInstance() {
+        if (instance == null) {
+            synchronized (DownloadUtils.class) {
+                if (instance == null) {
+                    instance = new DownloadUtils();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private DownloadUtils() {
+        this.client = createSecureClient();
+        startTimeoutMonitor();
     }
 
     /**
-     * 带自定义 OkHttpClient 的构造函数。
+     * 创建安全的OkHttpClient实例
      *
-     * @param client 自定义的 OkHttpClient 实例，若为 null 则使用默认实例。
+     * @return OkHttpClient实例
      */
-    public DownloadUtils(OkHttpClient client) {
-        this.okHttpClient = client != null ? client : new OkHttpClient();
+    private OkHttpClient createSecureClient() {
+        return new OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).writeTimeout(30, TimeUnit.SECONDS).retryOnConnectionFailure(true).connectionSpecs(Arrays.asList(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS, ConnectionSpec.CLEARTEXT)).build();
     }
 
     /**
-     * 开始下载文件。先检查 URL 可达性和存储目录是否存在，满足条件则启动下载。
+     * 启动下载任务
      *
-     * @param url      文件下载链接
-     * @param saveDir  存储下载文件的目录
+     * @param url      下载文件的URL
+     * @param savePath 文件保存路径
      * @param fileName 文件名
-     * @param listener 下载监听器，用于接收下载状态、进度和速度的回调
+     * @param callback 下载回调接口
+     * @return 任务ID，如果输入参数无效则返回 ""
      */
-    public void download(String url, String saveDir, String fileName, OnDownloadListener listener) {
-        checkUrlReachable(url, reachable -> {
-            if (!reachable) {
-                notifyOnMainThread(() -> listener.onDownloadFailed("目标资源不可达"));
-                return;
+    public String startDownload(String url, String savePath, String fileName, DownloadCallback callback) {
+        if (!validateInputs(url, savePath, fileName, callback)) {
+            return "";
+        }
+
+        final String taskId = generateTaskId(url, savePath, fileName);
+        if (activeTasks.containsKey(taskId)) {
+            notifyErrorImmediately(callback, taskId, "任务已存在");
+            return taskId;
+        }
+
+        new Thread(() -> {
+            try {
+                concurrencySemaphore.acquire();
+                final File targetFile = prepareFile(savePath, fileName, callback);
+                if (targetFile == null) return;
+
+                final TaskContext context = new TaskContext(taskId, url, savePath, fileName, callback);
+                activeTasks.put(taskId, context);
+
+                boolean supportsResume = checkResumeSupport(url);
+                executeDownload(context, targetFile, 0, supportsResume);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                concurrencySemaphore.release();
             }
-            if (!ensureDirectoryExists(saveDir)) {
-                notifyOnMainThread(() -> listener.onDownloadFailed("无法创建或访问存储目录"));
-                return;
-            }
-            startDownload(url, saveDir, fileName, listener, 0);
-        });
+        }).start();
+
+        return taskId;
     }
 
     /**
-     * 启动文件下载任务，考虑并发下载限制和部分内容支持。
+     * 检查URL是否支持断点续传
      *
-     * @param url        文件下载链接
-     * @param saveDir    存储下载文件的目录
-     * @param fileName   文件名
-     * @param listener   下载监听器
-     * @param retryCount 当前重试次数
+     * @param url 下载文件的URL
+     * @return 如果支持断点续传则返回true，否则返回false
      */
-    private void startDownload(String url, String saveDir, String fileName, OnDownloadListener listener, int retryCount) {
-        try {
-            // 获取信号量许可
-            downloadSemaphore.acquire();
-            File file = new File(saveDir, fileName);
-            long existingLength = file.exists() ? file.length() : 0;
-            final long startFrom = existingLength;
+    private boolean checkResumeSupport(String url) {
+        Request request = new Request.Builder().url(url).head().build();
 
-            Request request = new Request.Builder().url(url).header("RANGE", "bytes=" + startFrom + "-").build();
-
-            if (startFrom > 0 && !checkPartialContentSupport(url)) {
-                file.delete();
-                request = new Request.Builder().url(url).build(); // 不带 Range 头的请求
-            }
-
-            Call call = okHttpClient.newCall(request);
-            String taskId = generateUniqueId(url, saveDir, fileName);
-
-            downloadTasks.put(taskId, new CallInfo(call, startFrom)); // 使用唯一标识作为任务键
-            call.enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    handleFailure(retryCount, url, saveDir, fileName, listener, e, taskId);
-                }
-
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    try {
-                        handleResponse(response, file, listener, startFrom, taskId);
-                    } finally {
-                        computeIfPresent(taskId, null); // 线程安全地移除下载任务
-                        downloadSemaphore.release(); // 释放信号量
-                    }
-                }
-            });
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            downloadSemaphore.release(); // 保证在中断时也释放信号量
-            notifyOnMainThread(() -> listener.onDownloadFailed("任务被中断"));
+        try (Response response = client.newCall(request).execute()) {
+            return response.code() == 206; // 检查是否支持分片下载
+        } catch (IOException e) {
+            Log.w(TAG, "断点续传检查失败", e);
+            return false;
         }
     }
 
     /**
-     * 暂停指定的下载任务。
+     * 执行下载
      *
-     * @param taskId 下载任务的唯一标识
+     * @param context    任务上下文
+     * @param targetFile 目标文件
+     * @param retryCount 重试次数
+     * @param useRange   是否使用范围请求（断点续传）
      */
-    public void pauseDownload(String taskId) {
-        downloadTasks.computeIfPresent(taskId, (key, value) -> {
-            value.isPaused = true;
-            if (value.call != null && !value.call.isCanceled()) {
-                value.call.cancel();
-            }
-            return value;
-        });
-    }
-
-    /**
-     * 恢复指定的下载任务。
-     *
-     * @param url      文件下载链接
-     * @param saveDir  存储下载文件的目录
-     * @param fileName 文件名
-     * @param listener 下载监听器
-     */
-    public void resumeDownload(String url, String saveDir, String fileName, OnDownloadListener listener) {
-        String taskId = generateUniqueId(url, saveDir, fileName);
-        downloadTasks.computeIfPresent(taskId, (key, value) -> {
-            if (value != null && value.isPaused) {
-                synchronized (value) {
-                    value.isPaused = false;
-                    if (value.isWaiting) {
-                        value.notify(); // 只唤醒当前任务
-                    }
-                }
-            } else {
-                notifyOnMainThread(() -> listener.onDownloadFailed("任务未暂停或已不存在"));
-            }
-            return value;
-        });
-    }
-
-    /**
-     * 处理下载失败情况，决定是否重试。若重试次数未达上限，采用指数退避策略。
-     *
-     * @param retryCount 当前重试次数
-     * @param url        文件下载链接
-     * @param saveDir    存储下载文件的目录
-     * @param fileName   文件名
-     * @param listener   下载监听器
-     * @param e          下载失败的异常信息
-     * @param taskId     下载任务的唯一标识
-     */
-    private void handleFailure(int retryCount, String url, String saveDir, String fileName, OnDownloadListener listener, IOException e, String taskId) {
-        computeIfPresent(taskId, null); // 移除无效任务
-        downloadSemaphore.release(); // 释放信号量
-        if (retryCount < MAX_RETRIES) {
-            long delay = (long) Math.pow(2, retryCount) * 1000; // 指数退避
-            if (delay > 30000) delay = 30000; // 设置最大重试间隔为 30 秒
-            new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                startDownload(url, saveDir, fileName, listener, retryCount + 1);
-            }, delay);
-        } else {
-            cleanupTempFile(fileName, saveDir);
-            notifyOnMainThread(() -> listener.onDownloadFailed("重试次数已达上限: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * 处理下载响应，将文件写入本地并更新下载进度和速度，支持暂停和恢复。
-     *
-     * @param response  下载响应对象
-     * @param file      存储下载文件的本地 File 对象
-     * @param listener  下载监听器
-     * @param startFrom 本地已存在文件的大小
-     * @param taskId    下载任务的唯一标识
-     * @throws IOException 若在文件读写过程中出现异常
-     */
-    private void handleResponse(Response response, File file, OnDownloadListener listener, long startFrom, String taskId) throws IOException {
-        if (!response.isSuccessful()) {
-            cleanupTempFile(file.getName(), file.getParent());
-            notifyOnMainThread(() -> listener.onDownloadFailed("Unexpected code " + response.code()));
+    private void executeDownload(TaskContext context, File targetFile, int retryCount, boolean useRange) {
+        if (context.isCancelled.get()) {
+            cleanupTask(context.taskId, "任务已取消");
             return;
         }
 
-        AtomicLong lastReportTime = new AtomicLong(System.currentTimeMillis());
-        AtomicLong bytesSinceLastReport = new AtomicLong(0);
-        try (InputStream inputStream = response.body().byteStream(); RandomAccessFile raf = new RandomAccessFile(file, "rw")) {
-            raf.seek(startFrom); // 定位到文件末尾
-            byte[] buffer = new byte[8192];
-            long totalBytes = response.body().contentLength() + file.length();
-            long downloadedBytes = startFrom;
+        final long startBytes = useRange ? targetFile.length() : 0;
+        Request request = new Request.Builder().url(context.url).header("Range", "bytes=" + startBytes + "-").build();
 
-            int readBytes;
-            while ((readBytes = inputStream.read(buffer)) != -1) {
-                synchronized (downloadTasks.get(taskId)) { // 添加同步块确保线程安全
-                    if (downloadTasks.get(taskId).isPaused) {
-                        downloadTasks.get(taskId).isWaiting = true;
-                        notifyOnMainThread(listener::onDownloadPaused);
-                        try {
-                            downloadTasks.get(taskId).wait(); // 等待直到任务被恢复
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            notifyOnMainThread(() -> listener.onDownloadFailed("任务被中断"));
-                            return;
-                        }
-                        downloadTasks.get(taskId).isWaiting = false;
-                        notifyOnMainThread(listener::onDownloadResumed);
-                    }
-                }
-                raf.write(buffer, 0, readBytes);
-                downloadedBytes += readBytes;
-                bytesSinceLastReport.addAndGet(readBytes);
-                long currentTime = System.currentTimeMillis();
-                long elapsedTime = currentTime - lastReportTime.get();
-                if (elapsedTime > 0) {
-                    double speed = bytesSinceLastReport.get() / (elapsedTime / 1000.0); // 改为 double 类型
-                    notifyOnMainThread(() -> listener.onSpeedUpdate(speed)); // 确保监听器也接受 double 类型参数
-                    lastReportTime.set(currentTime);
-                    bytesSinceLastReport.set(0);
-                }
-                int progress = (int) ((downloadedBytes * 100) / totalBytes);
-                notifyOnMainThread(() -> listener.onDownloading(progress));
-            }
-            notifyOnMainThread(listener::onDownloadSuccess);
-        } catch (SecurityException e) {
-            notifyOnMainThread(() -> listener.onDownloadFailed("权限错误: " + e.getMessage()));
-        } catch (IOException e) {
-            notifyOnMainThread(() -> listener.onDownloadFailed("网络错误: " + e.getMessage()));
-        } catch (Exception e) {
-            notifyOnMainThread(() -> listener.onDownloadFailed("未知错误: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * 确保存储下载文件的目录存在，若不存在则尝试创建。
-     *
-     * @param saveDir 存储下载文件的目录路径
-     * @return 若目录存在或成功创建则返回 true，否则返回 false
-     */
-    private boolean ensureDirectoryExists(String saveDir) {
-        File dir = new File(saveDir);
-        if (!dir.exists() && !dir.mkdirs()) {
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * 清理可能产生的临时文件。
-     *
-     * @param fileName 要清理的文件名称
-     * @param saveDir  存储文件的目录路径
-     */
-    private void cleanupTempFile(String fileName, String saveDir) {
-        File dir = new File(saveDir);
-        if (!dir.exists() || !dir.isDirectory()) {
-            throw new IllegalArgumentException("保存目录无效");
-        }
-        File file = new File(dir, fileName);
-        if (file.exists()) {
-            file.delete(); // 删除整个文件
-        }
-    }
-
-    /**
-     * 检查给定 URL 是否可达，并检查是否支持断点续传。
-     *
-     * @param url      要检查的 URL
-     * @param callback 用于接收检查结果的回调函数
-     */
-    private void checkUrlReachable(String url, Consumer<Boolean> callback) {
-        Request request = new Request.Builder().url(url).head().addHeader("Range", "bytes=0-").build();
-        okHttpClient.newCall(request).enqueue(new Callback() {
+        context.currentCall.set(client.newCall(request));
+        context.currentCall.get().enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.accept(false);
+                handleNetworkError(context, targetFile, retryCount, e);
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                callback.accept(response.isSuccessful() && response.code() == 206);
+                try (ResponseBody body = response.body(); InputStream is = body.byteStream(); RandomAccessFile raf = new RandomAccessFile(targetFile, "rw")) {
+
+                    if (!response.isSuccessful()) {
+                        handleServerError(context, response.code());
+                        return;
+                    }
+
+                    // 处理文件长度信息
+                    long contentLength = body.contentLength();
+                    long totalSize = contentLength + (useRange ? targetFile.length() : 0);
+                    context.totalSize.set(totalSize);
+
+                    raf.seek(startBytes);
+                    processStream(context, is, raf, totalSize);
+                    verifyAndFinalize(context, targetFile);
+                } catch (Exception e) {
+                    handleUnexpectedError(context, e);
+                }
             }
         });
     }
 
     /**
-     * 检查服务器是否支持部分内容下载。
+     * 处理下载数据流
      *
-     * @param url 要检查的 URL
-     * @return 若支持则返回 true，否则返回 false
+     * @param context   任务上下文
+     * @param is        输入流
+     * @param raf       随机访问文件
+     * @param totalSize 文件总大小
+     * @throws IOException 输入输出异常
      */
-    private boolean checkPartialContentSupport(String url) {
-        Request request = new Request.Builder().url(url).head().addHeader("Range", "bytes=0-").build();
+    private void processStream(TaskContext context, InputStream is, RandomAccessFile raf, long totalSize) throws IOException {
+        byte[] buffer = new byte[BUFFER_SIZE];
+        int bytesRead;
+        long lastSpeedUpdateTime = System.currentTimeMillis(); // 速度计算起始时间
+        long bytesInCurrentWindow = 0; // 当前统计窗口的字节数
+
         try {
-            Response response = okHttpClient.newCall(request).execute();
-            return response.code() == 206; // 206 Partial Content
-        } catch (IOException e) {
-            e.printStackTrace();
+            while ((bytesRead = is.read(buffer)) != -1) {
+                // 检查暂停状态（同步锁保证线程安全）
+                checkPauseState(context);
+
+                // 检查取消状态
+                if (context.isCancelled.get()) {
+                    Log.d(TAG, "任务已取消: " + context.taskId);
+                    break;
+                }
+
+                // 写入文件（处理潜在IO异常）
+                try {
+                    raf.write(buffer, 0, bytesRead);
+                } catch (IOException e) {
+                    Log.e(TAG, "文件写入失败: " + e.getMessage());
+                }
+
+                // 更新进度（整合updateProgress逻辑）
+                updateProgress(context, bytesRead, totalSize, lastSpeedUpdateTime, bytesInCurrentWindow);
+
+                // 记录最后有效进度时间（用于超时监控）
+                context.lastProgressTime.set(System.currentTimeMillis());
+            }
+
+            // 最终完成检测（确保完成回调触发）
+            if (context.downloadedBytes.get() >= totalSize && !context.isCancelled.get()) {
+                context.isCompleted.set(true);
+                Log.i(TAG, "下载完成: " + context.taskId);
+            }
+        } finally {
+            // 强制刷新文件系统缓存
+            try {
+                raf.getFD().sync();
+            } catch (SyncFailedException e) {
+                Log.w(TAG, "文件同步失败: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 进度更新
+     *
+     * @param context              任务上下文
+     * @param delta                本次读取字节数
+     * @param totalSize            总文件大小
+     * @param lastSpeedUpdateTime  上次速度计算时间（传引用）
+     * @param bytesInCurrentWindow 当前统计窗口字节数（传引用）
+     */
+    private void updateProgress(TaskContext context, int delta, long totalSize, long lastSpeedUpdateTime, long bytesInCurrentWindow) {
+        // 更新累计下载量
+        long currentBytes = context.downloadedBytes.addAndGet(delta);
+
+        // 统计当前窗口数据
+        bytesInCurrentWindow += delta;
+
+        // 计算时间差
+        long currentTime = System.currentTimeMillis();
+        long timeDelta = currentTime - lastSpeedUpdateTime;
+
+        // 满足以下条件之一时触发回调：
+        // 1. 超过最小更新间隔（300ms）
+        // 2. 下载完成
+        // 3. 统计窗口超过1MB（避免小包频繁回调）
+        if (timeDelta > MIN_PROGRESS_UPDATE_INTERVAL || currentBytes == totalSize || bytesInCurrentWindow > 1048576) {
+
+            double speed = calculateSpeed(bytesInCurrentWindow, timeDelta);
+            notifyProgress(context, currentBytes, totalSize, speed);
+
+            // 重置统计窗口
+            lastSpeedUpdateTime = currentTime;
+            bytesInCurrentWindow = 0;
+        }
+    }
+
+    /**
+     * 校验文件并完成下载
+     *
+     * @param context 任务上下文
+     * @param tmpFile 临时文件
+     */
+    private void verifyAndFinalize(TaskContext context, File tmpFile) {
+        if (context.isCancelled.get()) {
+            safeDeleteFile(tmpFile);
+            return;
+        }
+
+        // 完整性校验
+        if (tmpFile.length() != context.totalSize.get()) {
+            handleFileFinalizeError(context, tmpFile);
+            return;
+        }
+
+        File finalFile = new File(context.savePath, context.fileName);
+        if (tmpFile.renameTo(finalFile)) {
+            notifyCompletion(context, finalFile);
+        } else {
+            handleFileFinalizeError(context, tmpFile);
+        }
+        cleanupTask(context.taskId, "下载完成");
+    }
+
+    /**
+     * 处理文件最终化错误
+     *
+     * @param context 任务上下文
+     * @param tmpFile 临时文件
+     */
+    private void handleFileFinalizeError(TaskContext context, File tmpFile) {
+        Log.e(TAG, "文件重命名失败：" + tmpFile.getAbsolutePath());
+        notifyError(context, "文件保存失败");
+        safeDeleteFile(tmpFile);
+        cleanupTask(context.taskId, "文件错误");
+    }
+
+    /**
+     * 暂停检查逻辑
+     *
+     * @param context 任务上下文
+     */
+    private void checkPauseState(TaskContext context) {
+        synchronized (context.pauseLock) {
+            while (context.isPaused.get() && !context.isCancelled.get()) {
+                try {
+                    notifyPaused(context);
+                    context.pauseLock.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
+
+    /**
+     * 处理网络错误（带指数退避重试）
+     *
+     * @param context    任务上下文
+     * @param tmpFile    临时文件
+     * @param retryCount 重试次数
+     * @param e          异常对象
+     */
+    private void handleNetworkError(TaskContext context, File tmpFile, int retryCount, Exception e) {
+        if (retryCount < MAX_RETRIES && !context.isCancelled.get()) {
+            long delay = (long) (1000 * Math.pow(2, retryCount));
+            mainHandler.postDelayed(() -> executeDownload(context, tmpFile, retryCount + 1, true), delay);
+        } else {
+            notifyError(context, "网络错误: " + e.getMessage());
+            safeDeleteFile(tmpFile);
+            cleanupTask(context.taskId, "网络错误");
+        }
+    }
+
+    /**
+     * 暂停下载任务
+     *
+     * @param taskId 任务ID
+     */
+    public void pauseDownload(String taskId) {
+        TaskContext context = activeTasks.get(taskId);
+        if (context != null) {
+            context.isPaused.set(true);
+            Call call = context.currentCall.get();
+            if (call != null) call.cancel();
+        }
+    }
+
+    /**
+     * 恢复下载任务
+     *
+     * @param taskId 任务ID
+     */
+    public void resumeDownload(String taskId) {
+        TaskContext context = activeTasks.get(taskId);
+        if (context != null) {
+            synchronized (context.pauseLock) {
+                context.isPaused.set(false);
+                context.pauseLock.notifyAll();
+            }
+            if (!isNetworkAvailable()) {
+                notifyError(context, "网络不可用");
+                return;
+            }
+            File tmpFile = new File(context.savePath, context.fileName + ".tmp");
+            executeDownload(context, tmpFile, 0, true);
+        }
+    }
+
+    /**
+     * 取消下载任务
+     *
+     * @param taskId 任务ID
+     */
+    public void cancelDownload(String taskId) {
+        TaskContext context = activeTasks.get(taskId);
+        if (context != null) {
+            context.isCancelled.set(true);
+            Call call = context.currentCall.get();
+            if (call != null) call.cancel();
+            safeDeleteFile(new File(context.savePath, context.fileName + ".tmp"));
+            cleanupTask(taskId, "用户取消");
+        }
+    }
+
+    /**
+     * 超时监控
+     */
+    private void startTimeoutMonitor() {
+        timeoutHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                long now = System.currentTimeMillis();
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    handleTimeoutWithRemoveIf(now);
+                } else {
+                    handleTimeoutLegacy(now);
+                }
+                timeoutHandler.postDelayed(this, 30000);
+            }
+
+            @RequiresApi(api = android.os.Build.VERSION_CODES.N)
+            private void handleTimeoutWithRemoveIf(long now) {
+                activeTasks.entrySet().removeIf(entry -> {
+                    TaskContext ctx = entry.getValue();
+                    return checkAndHandleTimeout(ctx, now);
+                });
+            }
+
+            private void handleTimeoutLegacy(long now) {
+                Iterator<Map.Entry<String, TaskContext>> iterator = activeTasks.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<String, TaskContext> entry = iterator.next();
+                    if (checkAndHandleTimeout(entry.getValue(), now)) {
+                        iterator.remove();
+                    }
+                }
+            }
+
+            private boolean checkAndHandleTimeout(TaskContext ctx, long now) {
+                boolean timeout = now - ctx.lastProgressTime.get() > DOWNLOAD_TIMEOUT_MS;
+                if (timeout && !ctx.isCompleted.get()) {
+                    handleStagnation(ctx);
+                    return true;
+                }
+                return false;
+            }
+        }, 30000);
+    }
+
+    /**
+     * 处理下载停滞（超时）情况
+     *
+     * @param context 任务上下文
+     */
+    private void handleStagnation(TaskContext context) {
+        notifyError(context, "下载超时");
+        safeDeleteFile(new File(context.savePath, context.fileName + ".tmp"));
+        context.currentCall.get().cancel();
+        cleanupTask(context.taskId, "超时清理");
+    }
+
+    /**
+     * 验证输入参数有效性
+     *
+     * @param url      下载的URL
+     * @param path     保存文件的路径
+     * @param name     文件名
+     * @param callback 下载回调
+     * @return 输入参数是否有效
+     */
+    private boolean validateInputs(String url, String path, String name, DownloadCallback callback) {
+        if (TextUtils.isEmpty(url)) {
+            notifyErrorImmediately(callback, null, "URL不能为空");
+            return false;
+        }
+
+        // URL格式校验
+        if (!isValidUrl(url)) {
+            notifyErrorImmediately(callback, null, "URL格式无效");
+            return false;
+        }
+
+        // 检查路径或文件名是否为空
+        if (TextUtils.isEmpty(path) || TextUtils.isEmpty(name)) {
+            notifyErrorImmediately(callback, null, "无效路径或文件名");
+            return false;
+        }
+
+        // 检查目录是否存在，不存在则创建
+        File dir = new File(path);
+        if (!dir.exists() && !dir.mkdirs()) {
+            notifyErrorImmediately(callback, null, "目录创建失败");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证传入的URL是否有效
+     *
+     * @param url 待验证的URL字符串
+     * @return 如果URL有效则返回true，否则返回false
+     */
+    private boolean isValidUrl(String url) {
+        // 允许的协议白名单
+        final String[] ALLOWED_SCHEMES = {"http", "https", "ftp"};
+
+        // 使用Android系统URL检测模式
+        if (!Patterns.WEB_URL.matcher(url).matches()) {
+            return false;
+        }
+
+        // 验证协议类型
+        try {
+            String scheme = Uri.parse(url).getScheme().toLowerCase();
+            return Arrays.asList(ALLOWED_SCHEMES).contains(scheme);
+        } catch (Exception e) {
             return false;
         }
     }
 
     /**
-     * 生成下载任务的唯一标识。
+     * 立即通知错误
      *
-     * @param url      下载链接
-     * @param saveDir  存储目录
-     * @param fileName 文件名
-     * @return 唯一标识的字符串
+     * @param callback 下载回调
+     * @param taskId   任务ID
+     * @param message  错误消息
      */
-    private String generateUniqueId(String url, String saveDir, String fileName) {
-        url = url.trim();
-        saveDir = saveDir.trim();
-        fileName = fileName.trim();
+    private void notifyErrorImmediately(DownloadCallback callback, String taskId, String message) {
+        if (callback == null) return;
+        mainHandler.post(() -> callback.onError(taskId, message));
+    }
+
+    /**
+     * 准备下载文件（带旧文件清理）
+     *
+     * @param path     保存文件的路径
+     * @param name     文件名
+     * @param callback 下载回调
+     * @return 临时文件对象，若准备失败则返回null
+     */
+    private File prepareFile(String path, String name, DownloadCallback callback) {
+        File tmpFile = new File(path, name + ".tmp");
+        File finalFile = new File(path, name);
+
+        try {
+            // 清理已有文件
+            if (finalFile.exists() && !finalFile.delete()) {
+                notifyErrorImmediately(callback, null, "已有文件无法删除");
+                return null;
+            }
+            // 清理临时文件
+            if (tmpFile.exists() && !tmpFile.delete()) {
+                notifyErrorImmediately(callback, null, "临时文件无法清理");
+                return null;
+            }
+            // 创建临时文件
+            if (!tmpFile.createNewFile()) {
+                notifyErrorImmediately(callback, null, "文件创建失败");
+                return null;
+            }
+        } catch (IOException e) {
+            notifyErrorImmediately(callback, null, "IO错误: " + e.getMessage());
+            return null;
+        }
+        return tmpFile;
+    }
+
+    /**
+     * 生成唯一任务ID（带SHA - 256哈希）
+     *
+     * @param params 用于生成ID的参数
+     * @return 生成的任务ID
+     */
+    private String generateTaskId(String... params) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            String baseString = url + saveDir + fileName;
-            byte[] hash = md.digest(baseString.getBytes());
-            StringBuilder hexString = new StringBuilder();
+            byte[] hash = md.digest(String.join("#", params).getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
             for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
+                sb.append(String.format("%02x", b));
             }
-            return hexString.toString();
+            return sb.toString().substring(0, 16); // 取前16位作为ID
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            return UUID.randomUUID().toString().replace("-", "");
         }
     }
 
     /**
-     * 若任务存在，则根据传入的 Call 对象更新或移除任务。
+     * 安全执行回调（主线程）
      *
-     * @param taskId 下载任务的唯一标识
-     * @param call   下载任务的 Call 对象，若为 null 则移除任务
+     * @param context 任务上下文
+     * @param action  要执行的操作
      */
-    private void computeIfPresent(String taskId, Call call) {
-        downloadTasks.computeIfPresent(taskId, (key, value) -> {
-            if (call == null || value.call.isCanceled() || value.call.isExecuted()) {
-                return null; // Remove the entry from the map
+    private void safeCallback(TaskContext context, Runnable action) {
+        if (context.callbackRef.get() == null) return;
+        mainHandler.post(() -> {
+            if (!context.isCancelled.get()) {
+                action.run();
             }
-            return value;
         });
     }
 
     /**
-     * 在主线程执行指定的操作。
+     * 计算下载速度（KB/s）
      *
-     * @param action 要执行的操作
+     * @param bytesDelta  下载的字节数
+     * @param timeDeltaMs 下载时间（毫秒）
+     * @return 下载速度（KB/s）
      */
-    private void notifyOnMainThread(Runnable action) {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            action.run();
-        } else {
-            new Handler(Looper.getMainLooper()).post(action);
-        }
+    private double calculateSpeed(long bytesDelta, long timeDeltaMs) {
+        if (timeDeltaMs == 0) return 0;
+        return (bytesDelta / 1024.0) / (timeDeltaMs / 1000.0);
     }
 
     /**
-     * 在主线程执行指定的消费操作。
+     * 网络可用性检查
      *
-     * @param action 要执行的消费操作
-     * @param param  消费操作的参数
-     * @param <T>    参数的类型
+     * @return 网络是否可用
      */
-    private <T> void notifyOnMainThread(Consumer<T> action, T param) {
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            action.accept(param);
-        } else {
-            new Handler(Looper.getMainLooper()).post(() -> action.accept(param));
+    private boolean isNetworkAvailable() {
+        Context ctx = AppContext.getInstance().getContext();
+        if (ctx == null) return false;
+
+        ConnectivityManager cm = (ConnectivityManager) ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+    }
+
+    /**
+     * 安全删除文件（静默处理异常）
+     *
+     * @param file 要删除的文件
+     */
+    private void safeDeleteFile(File file) {
+        if (file == null) return;
+        try {
+            if (file.exists() && !file.delete()) {
+                Log.w(TAG, "文件删除失败: " + file.getAbsolutePath());
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "文件删除权限不足: " + e.getMessage());
         }
     }
 
     /**
-     * 下载监听器接口，用于监听文件下载过程中的各种状态变化。
+     * 处理服务器响应错误
+     *
+     * @param context    任务上下文
+     * @param statusCode HTTP状态码
      */
-    public interface OnDownloadListener {
-        /**
-         * 当文件下载成功时调用此方法。
-         */
-        void onDownloadSuccess();
-
-        /**
-         * 当文件正在下载时，定期调用此方法反馈下载进度。
-         *
-         * @param progress 当前的下载进度，取值范围为 0 - 100
-         */
-        void onDownloading(int progress);
-
-        /**
-         * 当文件下载失败时调用此方法，并提供失败的错误信息。
-         *
-         * @param errorMessage 描述下载失败原因的错误信息
-         */
-        void onDownloadFailed(String errorMessage);
-
-        /**
-         * 当下载速度发生变化时调用此方法，反馈当前的下载速度。
-         *
-         * @param speed 当前的下载速度，单位为字节每秒
-         */
-        void onSpeedUpdate(double speed);
-
-        /**
-         * 当下载任务被暂停时调用此方法。
-         */
-        void onDownloadPaused();
-
-        /**
-         * 当下载任务从暂停状态恢复时调用此方法。
-         */
-        void onDownloadResumed();
+    private void handleServerError(TaskContext context, int statusCode) {
+        String errorMsg;
+        switch (statusCode) {
+            case 404:
+                errorMsg = "资源不存在";
+                break;
+            case 416:
+                errorMsg = "范围请求不满足";
+                break;
+            case 500:
+            case 503:
+                errorMsg = "服务器内部错误";
+                break;
+            default:
+                errorMsg = "HTTP错误码: " + statusCode;
+        }
+        notifyError(context, errorMsg);
+        cleanupTask(context.taskId, errorMsg);
     }
 
     /**
-     * 内部静态类，用于存储下载任务的相关信息。
+     * 处理未知错误
+     *
+     * @param context 任务上下文
+     * @param e       异常对象
      */
-    private static class CallInfo {
-        // OkHttp 的 Call 对象，代表一个可执行的请求
-        Call call;
-        // 下载开始的位置，用于支持断点续传
-        long startPosition;
-        // 标记下载任务是否处于暂停状态
-        boolean isPaused;
-        // 标记下载任务是否正在等待恢复
-        boolean isWaiting;
+    private void handleUnexpectedError(TaskContext context, Exception e) {
+        Log.e(TAG, "未预期错误: " + e.getMessage(), e);
+        notifyError(context, "系统错误: " + e.getClass().getSimpleName());
+        cleanupTask(context.taskId, "未预期异常");
+    }
+
+    /**
+     * 进度通知（带频率控制）
+     *
+     * @param context 任务上下文
+     * @param current 当前下载的字节数
+     * @param total   文件总字节数
+     * @param speed   下载速度（KB/s）
+     */
+    private void notifyProgress(TaskContext context, long current, long total, double speed) {
+        safeCallback(context, () -> {
+            DownloadCallback cb = context.callbackRef.get();
+            if (cb != null) {
+                cb.onProgress(context.taskId, current, total, speed);
+            }
+        });
+    }
+
+    /**
+     * 完成通知
+     *
+     * @param context 任务上下文
+     * @param file    下载完成的文件
+     */
+    private void notifyCompletion(TaskContext context, File file) {
+        safeCallback(context, () -> {
+            DownloadCallback cb = context.callbackRef.get();
+            if (cb != null) {
+                cb.onComplete(context.taskId, file);
+            }
+        });
+    }
+
+    /**
+     * 错误通知
+     *
+     * @param context 任务上下文
+     * @param reason  错误原因
+     */
+    private void notifyError(TaskContext context, String reason) {
+        safeCallback(context, () -> {
+            DownloadCallback cb = context.callbackRef.get();
+            if (cb != null) {
+                cb.onError(context.taskId, reason);
+            }
+        });
+    }
+
+    /**
+     * 暂停通知
+     *
+     * @param context 任务上下文
+     */
+    private void notifyPaused(TaskContext context) {
+        safeCallback(context, () -> {
+            DownloadCallback cb = context.callbackRef.get();
+            if (cb != null) {
+                cb.onPaused(context.taskId, context.downloadedBytes.get());
+            }
+        });
+    }
+
+    /**
+     * 清理任务资源
+     *
+     * @param taskId 任务ID
+     * @param reason 清理原因
+     */
+    private void cleanupTask(String taskId, String reason) {
+        TaskContext context = activeTasks.remove(taskId);
+        if (context == null) return;
+
+        Log.d(TAG, "清理任务: " + taskId + " 原因: " + reason);
+
+        // 取消网络请求
+        Call call = context.currentCall.get();
+        if (call != null) call.cancel();
+
+        // 清理临时文件（错误时）
+        if (reason != null && !"下载完成".equals(reason)) {
+            safeDeleteFile(new File(context.savePath, context.fileName + ".tmp"));
+        }
+    }
+
+    /**
+     * 任务上下文，存储单个下载任务的相关信息与状态
+     */
+    private static class TaskContext {
+        // 任务唯一标识符，用于区分不同的下载任务
+        final String taskId;
+        // 下载文件的URL，指定了文件的来源地址
+        final String url;
+        // 文件保存路径，指明下载完成后文件存储的位置
+        final String savePath;
+        // 文件名，定义了下载文件在本地存储的名称
+        final String fileName;
+        // 下载回调接口的弱引用，避免内存泄漏，用于通知下载状态
+        final WeakReference<DownloadCallback> callbackRef;
+        // 已下载字节数，记录当前任务已完成的下载量
+        final AtomicLong downloadedBytes = new AtomicLong();
+        // 文件总字节数，代表整个文件的大小
+        final AtomicLong totalSize = new AtomicLong();
+        // 任务是否暂停的标志，控制任务的暂停与恢复
+        final AtomicBoolean isPaused = new AtomicBoolean();
+        // 任务是否取消的标志，用于取消正在进行的下载任务
+        final AtomicBoolean isCancelled = new AtomicBoolean();
+        // 任务是否完成的标志，判断下载任务是否成功结束
+        final AtomicBoolean isCompleted = new AtomicBoolean();
+        // 当前网络请求调用，可对正在进行的网络请求进行操作
+        final AtomicReference<Call> currentCall = new AtomicReference<>();
+        // 用于暂停操作的锁对象，在任务暂停和恢复时实现同步
+        final Object pauseLock = new Object();
+        // 最后一次进度更新时间，用于超时监控
+        final AtomicLong lastProgressTime = new AtomicLong(System.currentTimeMillis());
 
         /**
-         * 构造函数，初始化下载任务的相关信息。
+         * 构造任务上下文
          *
-         * @param call          OkHttp 的 Call 对象，不能为 null
-         * @param startPosition 下载开始的位置
+         * @param taskId   任务唯一标识符
+         * @param url      下载文件的URL
+         * @param path     文件保存路径
+         * @param name     文件名
+         * @param callback 下载回调接口
          */
-        CallInfo(@NonNull Call call, long startPosition) {
-            this.call = call;
-            this.startPosition = startPosition;
-            // 初始状态为未暂停
-            this.isPaused = false;
-            // 初始状态为未等待恢复
-            this.isWaiting = false;
+        TaskContext(String taskId, String url, String path, String name, DownloadCallback callback) {
+            this.taskId = taskId;
+            this.url = url;
+            this.savePath = path;
+            this.fileName = name;
+            this.callbackRef = new WeakReference<>(callback);
         }
+    }
+
+    public interface DownloadCallback {
+        /**
+         * 下载进度回调
+         *
+         * @param taskId     任务ID
+         * @param downloaded 已下载的字节数
+         * @param total      文件总字节数
+         * @param speed      下载速度（KB/s）
+         */
+        void onProgress(String taskId, long downloaded, long total, double speed);
+
+        /**
+         * 下载完成回调
+         *
+         * @param taskId 任务ID
+         * @param file   下载完成的文件
+         */
+        void onComplete(String taskId, File file);
+
+        /**
+         * 下载暂停回调
+         *
+         * @param taskId   任务ID
+         * @param progress 暂停时的下载进度（字节数）
+         */
+        void onPaused(String taskId, long progress);
+
+        /**
+         * 下载错误回调
+         *
+         * @param taskId 任务ID
+         * @param reason 错误原因
+         */
+        void onError(String taskId, String reason);
     }
 }
