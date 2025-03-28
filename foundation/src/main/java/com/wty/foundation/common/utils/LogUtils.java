@@ -1,8 +1,18 @@
 package com.wty.foundation.common.utils;
 
+import android.content.Context;
+import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
+import android.os.Process;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import com.wty.foundation.BuildConfig;
+import com.wty.foundation.common.init.AppContext;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -10,160 +20,117 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.Locale;
-import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 日志工具类，提供了一系列静态方法来记录不同级别的日志
- * 该工具类考虑了多线程环境下的安全性，并提供了丰富的日志信息，包括线程名、类名、方法名和行号
- * 在发布版本中可以通过 {@link BuildConfig#DEBUG} 来控制是否打印日志
+ * 日志工具类，用于管理日志记录、文件存储、日志级别控制等功能
  */
 public class LogUtils {
-    private static final String DEFAULT_TAG = "LogUtils"; // 默认日志标签
-    private static final int MAX_LOG_SIZE = 4000; // Android最大单条日志大小
-    private static final ThreadLocal<String> CURRENT_TAG = new ThreadLocal<>(); // 当前线程的日志标签
-    private static final ThreadLocal<Boolean> INCLUDE_STACK_TRACE = new ThreadLocal<>(); // 是否包含堆栈跟踪信息
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH:mm", Locale.getDefault()); // 日期格式
-    private static final SimpleDateFormat DATE_TIME_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()); // 日期时间格式
-
-    private static final BlockingQueue<Runnable> LOG_QUEUE = new LinkedBlockingQueue<>(); // 日志任务队列
-    private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(1, // 核心线程数
-            5, // 最大线程数
-            60L, // 空闲线程存活时间
-            TimeUnit.SECONDS, // 时间单位
-            LOG_QUEUE // 工作队列
-    );
+    private static final String TAG = "LogUtils";
+    // 日志最大长度
+    private static final int MAX_LOG_LENGTH = 4000;
+    // 日志刷新间隔（毫秒）
+    private static final int LOG_FLUSH_INTERVAL = 2000;
+    // 日志文件最大大小（字节）
+    private static final int MAX_LOG_FILE_SIZE = 5 * 1024 * 1024;
+    // 日志保留时长（毫秒）
+    private static final long LOG_RETENTION_DAYS = 7 * 24 * 60 * 60 * 1000L;
+    // 成功写入日志的计数
+    private static final AtomicInteger successCount = new AtomicInteger(0);
+    // 写入日志失败的计数
+    private static final AtomicInteger failureCount = new AtomicInteger(0);
+    // 日志文件路径
+    private static volatile String logFilePath = null;
+    // 当前日志级别
+    private static volatile int currentLogLevel = BuildConfig.DEBUG ? Log.VERBOSE : Log.INFO;
+    // 应用上下文
+    private static volatile Context appContext;
+    // 线程特定的日志标签
+    private static final ThreadLocal<String> threadSpecificTag = new ThreadLocal<>();
+    // 是否包含堆栈跟踪信息
+    private static final ThreadLocal<Boolean> includeStackTrace = new ThreadLocal<Boolean>() {
+        @Override
+        protected Boolean initialValue() {
+            return false;
+        }
+    };
+    // 日期格式化器
+    private static final ThreadLocal<SimpleDateFormat> dateFormatHolder = new ThreadLocal<SimpleDateFormat>() {
+        @Override
+        protected SimpleDateFormat initialValue() {
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
+        }
+    };
+    // 日志写入线程
+    private static final HandlerThread logHandlerThread = new HandlerThread("LogWriter", Process.THREAD_PRIORITY_BACKGROUND);
 
     static {
-        EXECUTOR.prestartAllCoreThreads(); // 预启动所有核心线程
+        // 启动日志写入线程
+        logHandlerThread.start();
     }
 
-    private static String LOG_FILE_PATH = ""; // 初始为空的日志文件路径
-    private static final String LOG_TAG = "LogUtils"; // 日志工具类的标签
-    private static volatile int currentLogLevel = Log.DEBUG; // 默认日志级别
-    private static int successCount = 0; // 成功记录的日志数量
-    private static int failureCount = 0; // 失败记录的日志数量
-    private static LogCallback logCallback = null; // 日志回调接口
-    private static long lastCallbackTime = 0; // 上次调用回调的时间
-    private static final long CALLBACK_THROTTLE_PERIOD = 1000; // 至少每秒调用一次回调
-    private static final long LOG_RETENTION_PERIOD = 7 * 24 * 60 * 60 * 1000L; // 日志保留周期（7天）
-    private static final Queue<String> pendingLogs = new LinkedList<>(); // 待处理日志队列
-    private static final int MAX_PENDING_LOGS = 1000; // 待处理日志的最大数量
-    private static final long MAX_LOG_WRITE_DURATION = 500; // 最大日志写入耗时（毫秒）
+    // 日志处理的Handler
+    private static final Handler logHandler = new Handler(logHandlerThread.getLooper());
+    // 日志缓冲区
+    private static final BlockingQueue<String> logBuffer = new LinkedBlockingQueue<>(1000);
+    // 主线程的Handler
+    private static final Handler mainHandler = new Handler(Looper.getMainLooper());
+    // 全局日志回调
+    private static volatile LogCallback globalLogCallback;
 
     /**
-     * 动态设置日志文件路径
-     *
-     * @param baseDir 日志文件的基础路径，例如："/storage/emulated/0/Android/data/com.example.myapp/files/logs/"
+     * 构造函数，初始化应用上下文
      */
-    public static void setLogFilepath(String baseDir) {
-        if (baseDir == null || baseDir.isEmpty() || baseDir.contains("..")) {
-            Log.e(LOG_TAG, "Invalid log file path: " + baseDir);
+    public LogUtils() {
+        if (appContext == null) {
+            synchronized (LogUtils.class) {
+                if (appContext == null) {
+                    appContext = AppContext.getInstance().getContext();
+                }
+            }
+        }
+    }
+
+    /**
+     * 设置自定义日志目录
+     *
+     * @param customDir 自定义日志目录
+     */
+    public static synchronized void setCustomLogDir(@NonNull File customDir) {
+        if (!customDir.canWrite()) {
+            Log.e(TAG, "Directory not writable: " + customDir);
             return;
         }
-        String logFileName = "app_" + DATE_FORMAT.format(new Date()) + ".log";
-        LOG_FILE_PATH = new File(baseDir, logFileName).getAbsolutePath();
-        File file = new File(LOG_FILE_PATH);
-        if (!file.exists()) {
-            file.getParentFile().mkdirs();
-            try {
-                file.createNewFile();
-            } catch (IOException e) {
-                Log.e(LOG_TAG, "Failed to create log file", e);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            // 若目录不存在则创建
+            if (!customDir.isDirectory() && !customDir.mkdirs()) {
+                Log.e(TAG, "Failed to create custom log directory");
+                logFilePath = null;
+                return;
             }
         }
+
+        // 生成日志文件名
+        String fileName = "app_" + getCurrentDate() + ".log";
+        logFilePath = new File(customDir, fileName).getAbsolutePath();
+        // 安排日志刷新任务
+        scheduleFlushTask();
+        // 安排日志清理任务
+        scheduleCleanupTask();
     }
 
     /**
-     * 检查当前构建类型是否为调试模式
-     *
-     * @return 如果是调试模式返回true，否则返回false
+     * 禁用文件日志记录
      */
-    public static boolean isDebug() {
-        return BuildConfig.DEBUG;
-    }
-
-    /**
-     * 设置当前线程的日志标签
-     *
-     * @param tag 日志标签
-     */
-    public static void setCurrentTag(String tag) {
-        if (tag != null) {
-            CURRENT_TAG.set(tag);
-        }
-    }
-
-    /**
-     * 设置是否包含堆栈跟踪信息
-     *
-     * @param include 是否包含堆栈跟踪信息
-     */
-    public static void setIncludeStackTrace(boolean include) {
-        INCLUDE_STACK_TRACE.set(include);
-    }
-
-    /**
-     * 获取当前线程的日志标签，如果未设置则使用默认标签
-     *
-     * @return 当前线程的日志标签
-     */
-    private static String getCurrentTag() {
-        String tag = CURRENT_TAG.get();
-        return (tag != null) ? tag : DEFAULT_TAG;
-    }
-
-    /**
-     * 创建带有时间戳、线程信息、类名、方法名和行号的日志消息
-     *
-     * @param msg 原始日志消息
-     * @return 格式化后的日志消息
-     */
-    private static String createLogMessage(String msg) {
-        if (INCLUDE_STACK_TRACE.get() == null || !INCLUDE_STACK_TRACE.get()) {
-            return msg;
-        }
-
-        try {
-            StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-            if (stackTraceElements.length < 4) {
-                return msg;
-            }
-            StackTraceElement targetElement = stackTraceElements[3];
-            String className = targetElement.getClassName();
-            String methodName = targetElement.getMethodName();
-            int lineNumber = targetElement.getLineNumber();
-
-            return String.format("[Thread: %s] %s.%s(%d): %s", Thread.currentThread().getName(), className, methodName, lineNumber, msg);
-        } catch (Exception e) {
-            // 防止堆栈跟踪解析失败导致应用崩溃
-            return msg;
-        }
-    }
-
-    /**
-     * 分割过长的日志消息并打印
-     *
-     * @param priority 日志级别
-     * @param tag      日志标签
-     * @param message  日志消息
-     */
-    private static void log(int priority, String tag, String message) {
-        if (message.length() > MAX_LOG_SIZE) {
-            for (int i = 0; i <= message.length() / MAX_LOG_SIZE; i++) {
-                int start = i * MAX_LOG_SIZE;
-                int end = (i + 1) * MAX_LOG_SIZE;
-                end = end < message.length() ? end : message.length();
-                Log.println(priority, tag, message.substring(start, end));
-            }
-        } else {
-            Log.println(priority, tag, message);
-        }
+    public static void disableFileLog() {
+        logFilePath = null;
+        // 移除刷新和清理任务
+        logHandler.removeCallbacks(flushTask);
+        logHandler.removeCallbacks(cleanupTask);
     }
 
     /**
@@ -172,9 +139,7 @@ public class LogUtils {
      * @param msg 日志消息
      */
     public static void v(String msg) {
-        if (currentLogLevel <= Log.VERBOSE) {
-            logAsync(Log.VERBOSE, getCurrentTag(), createLogMessage(msg));
-        }
+        log(Log.VERBOSE, msg, null);
     }
 
     /**
@@ -183,9 +148,7 @@ public class LogUtils {
      * @param msg 日志消息
      */
     public static void d(String msg) {
-        if (currentLogLevel <= Log.DEBUG) {
-            logAsync(Log.DEBUG, getCurrentTag(), createLogMessage(msg));
-        }
+        log(Log.DEBUG, msg, null);
     }
 
     /**
@@ -194,9 +157,7 @@ public class LogUtils {
      * @param msg 日志消息
      */
     public static void i(String msg) {
-        if (currentLogLevel <= Log.INFO) {
-            logAsync(Log.INFO, getCurrentTag(), createLogMessage(msg));
-        }
+        log(Log.INFO, msg, null);
     }
 
     /**
@@ -205,9 +166,7 @@ public class LogUtils {
      * @param msg 日志消息
      */
     public static void w(String msg) {
-        if (currentLogLevel <= Log.WARN) {
-            logAsync(Log.WARN, getCurrentTag(), createLogMessage(msg));
-        }
+        log(Log.WARN, msg, null);
     }
 
     /**
@@ -216,105 +175,46 @@ public class LogUtils {
      * @param msg 日志消息
      */
     public static void e(String msg) {
-        if (currentLogLevel <= Log.ERROR) {
-            logAsync(Log.ERROR, getCurrentTag(), createLogMessage(msg));
-        }
+        log(Log.ERROR, msg, null);
     }
 
     /**
-     * 记录ERROR级别的日志，并附带异常信息
+     * 记录带异常的ERROR级别的日志
      *
      * @param msg 日志消息
-     * @param tr  异常对象
+     * @param tr  异常信息
      */
     public static void e(String msg, Throwable tr) {
-        if (currentLogLevel <= Log.ERROR) {
-            logAsync(Log.ERROR, getCurrentTag(), createLogMessage(msg), tr);
-        }
+        log(Log.ERROR, msg, tr);
     }
 
     /**
-     * 记录带有异常信息的ERROR级别的日志
+     * 设置线程特定的日志标签
      *
-     * @param priority 日志级别
-     * @param tag      日志标签
-     * @param message  日志消息
-     * @param tr       异常对象
+     * @param tag 日志标签
      */
-    private static void logAsync(int priority, String tag, String message, Throwable tr) {
-        EXECUTOR.execute(() -> {
-            log(priority, tag, message);
-            log(priority, tag, Log.getStackTraceString(tr));
-            writeToFile(message + "\n" + Log.getStackTraceString(tr));
-        });
+    public static void setThreadTag(String tag) {
+        threadSpecificTag.set(tag);
     }
 
     /**
-     * 记录日志消息到文件
+     * 清除线程特定的日志标签
+     */
+    public static void clearThreadTag() {
+        threadSpecificTag.remove();
+    }
+
+    /**
+     * 设置是否包含堆栈跟踪信息
      *
-     * @param message 日志消息
+     * @param include 是否包含
      */
-    private static void writeToFile(String message) {
-        long startTime = System.currentTimeMillis();
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(LOG_FILE_PATH, true))) {
-            String timestamp = DATE_TIME_FORMAT.format(new Date());
-            String filteredMessage = filterLogContent(message);
-            writer.write(String.format("[%s] %s\n", timestamp, filteredMessage));
-            successCount++;
-            invokeLogCallback(true);
-        } catch (IOException e) {
-            failureCount++;
-            invokeLogCallback(false);
-            // 添加到待处理日志队列
-            synchronized (pendingLogs) {
-                if (pendingLogs.size() >= MAX_PENDING_LOGS) {
-                    handlePendingLogsFull();
-                } else {
-                    pendingLogs.add(message);
-                }
-            }
-        } finally {
-            long endTime = System.currentTimeMillis();
-            long duration = endTime - startTime;
-            logWriteDuration(startTime, endTime);
-            if (duration > MAX_LOG_WRITE_DURATION) {
-                triggerPerformanceAlert(duration);
-            }
-            rotateAndCleanupLogs();
-            cleanupOldLogs();
-        }
+    public static void setIncludeStackTrace(boolean include) {
+        includeStackTrace.set(include);
     }
 
     /**
-     * 异步记录日志
-     *
-     * @param priority 日志级别
-     * @param tag      日志标签
-     * @param message  日志消息
-     */
-    private static void logAsync(int priority, String tag, String message) {
-        EXECUTOR.execute(() -> {
-            log(priority, tag, message);
-            writeToFile(message);
-        });
-    }
-
-    /**
-     * 清除当前线程的日志标签
-     */
-    public static void clearCurrentTag() {
-        CURRENT_TAG.remove();
-    }
-
-    /**
-     * 清除当前线程的堆栈跟踪标志
-     */
-    public static void clearStackTraceFlag() {
-        INCLUDE_STACK_TRACE.remove();
-    }
-
-    /**
-     * 设置当前日志级别
+     * 设置日志级别
      *
      * @param level 日志级别
      */
@@ -323,157 +223,332 @@ public class LogUtils {
     }
 
     /**
-     * 获取当前日志级别
+     * 设置全局日志回调
      *
-     * @return 当前日志级别
+     * @param callback 日志回调
      */
-    public static int getLogLevel() {
-        return currentLogLevel;
+    public static void setLogCallback(@Nullable LogCallback callback) {
+        globalLogCallback = callback;
     }
 
     /**
-     * 记录日志写入耗时
-     *
-     * @param startTime 开始时间
-     * @param endTime   结束时间
+     * 刷新日志缓冲区并关闭日志写入线程
      */
-    private static void logWriteDuration(long startTime, long endTime) {
-        long duration = endTime - startTime;
-        Log.d(LOG_TAG, "Log write duration: " + duration + " ms");
+    public static void flushAndShutdown() {
+        // 移除所有任务和消息
+        logHandler.removeCallbacksAndMessages(null);
+        logHandler.post(() -> {
+            // 刷新缓冲区到文件
+            flushBufferToFile();
+            // 安全退出日志写入线程
+            logHandlerThread.quitSafely();
+        });
     }
 
     /**
-     * 触发性能警报
+     * 记录日志
      *
-     * @param duration 日志写入耗时
+     * @param priority 日志级别
+     * @param msg      日志消息
+     * @param tr       异常信息
      */
-    private static void triggerPerformanceAlert(long duration) {
-        synchronized (LogUtils.class) {
-            if (logCallback != null) {
-                EXECUTOR.execute(() -> {
-                    logCallback.onPerformanceAlert(duration);
-                });
-            }
+    private static void log(int priority, String msg, @Nullable Throwable tr) {
+        // 若日志级别低于当前设置级别则不记录
+        if (priority < currentLogLevel) return;
+
+        // 获取有效的日志标签
+        final String tag = getEffectiveTag();
+        // 构建完整的日志消息
+        final String fullMessage = buildLogMessage(msg, tr);
+
+        // 输出到控制台
+        doConsoleLog(priority, tag, fullMessage);
+
+        // 若日志文件路径存在则入队到缓冲区
+        if (logFilePath != null && !logFilePath.isEmpty()) {
+            enqueueLog(fullMessage);
         }
     }
 
     /**
-     * 进行日志内容过滤
+     * 将日志消息加入缓冲区
      *
      * @param message 日志消息
-     * @return 过滤后的日志消息
      */
-    private static String filterLogContent(String message) {
-        // 示例：过滤掉敏感信息
-        return message.replaceAll("(password|token)=.*?(\\s|$)", "$1=***$2");
-    }
-
-    /**
-     * 日志文件轮转和清理
-     */
-    private static synchronized void rotateAndCleanupLogs() {
-        File logFile = new File(LOG_FILE_PATH);
-        if (logFile.exists() && logFile.length() > 1024 * 1024 * 5) { // 5MB
-            File newLogFile = new File(LOG_FILE_PATH + ".new");
-            try {
-                newLogFile.createNewFile();
-                String backupFilePath = LOG_FILE_PATH + ".bak";
-                File backupFile = new File(backupFilePath);
-                if (backupFile.exists()) {
-                    backupFile.delete();
-                }
-                logFile.renameTo(backupFile);
-                newLogFile.renameTo(logFile); // 将临时文件重命名为正式日志文件
-            } catch (IOException e) {
-                Log.e(LOG_TAG, "Failed to rotate log file", e);
-            }
+    private static void enqueueLog(String message) {
+        // 若缓冲区已满则处理
+        if (!logBuffer.offer(message)) {
+            handleBufferFull(message);
         }
     }
 
     /**
-     * 定期清理旧的日志文件
+     * 将日志输出到控制台
+     *
+     * @param priority 日志级别
+     * @param tag      日志标签
+     * @param message  日志消息
      */
-    private static void cleanupOldLogs() {
-        File logDir = new File(LOG_FILE_PATH).getParentFile();
-        if (logDir != null && logDir.exists()) {
-            File[] files = logDir.listFiles((dir, name) -> name.endsWith(".log") || name.endsWith(".log.bak"));
-            if (files != null) {
-                for (File file : files) {
-                    if (System.currentTimeMillis() - file.lastModified() > LOG_RETENTION_PERIOD) {
-                        file.delete();
+    private static void doConsoleLog(int priority, String tag, String message) {
+        if (message.length() <= MAX_LOG_LENGTH) {
+            Log.println(priority, tag, message);
+            return;
+        }
+
+        // 若消息过长则分段输出
+        for (int i = 0, len = message.length(); i < len; i += MAX_LOG_LENGTH) {
+            int end = Math.min(i + MAX_LOG_LENGTH, len);
+            Log.println(priority, tag, message.substring(i, end));
+        }
+    }
+
+    /**
+     * 获取有效的日志标签
+     *
+     * @return 日志标签
+     */
+    private static String getEffectiveTag() {
+        String customTag = threadSpecificTag.get();
+        return customTag != null ? customTag : TAG;
+    }
+
+    /**
+     * 构建完整的日志消息
+     *
+     * @param msg 日志消息
+     * @param tr  异常信息
+     * @return 完整的日志消息
+     */
+    private static String buildLogMessage(String msg, @Nullable Throwable tr) {
+        StringBuilder sb = new StringBuilder(256);
+        // 添加时间和线程名
+        sb.append(dateFormatHolder.get().format(new Date())).append(" [").append(Thread.currentThread().getName()).append("] ");
+
+        // 若需要则添加堆栈跟踪信息
+        if (includeStackTrace.get()) {
+            appendStackTrace(sb);
+        }
+
+        sb.append(msg);
+
+        // 若有异常则添加异常堆栈信息
+        if (tr != null) {
+            sb.append('\n').append(Log.getStackTraceString(tr));
+        }
+
+        // 清理消息中的敏感信息
+        return sanitizeMessage(sb.toString());
+    }
+
+    /**
+     * 添加堆栈跟踪信息到日志消息
+     *
+     * @param sb 日志消息构建器
+     */
+    private static void appendStackTrace(StringBuilder sb) {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        for (StackTraceElement element : stackTrace) {
+            if (element.getClassName().equals(LogUtils.class.getName())) continue;
+            if (element.getClassName().startsWith("android.util.Log")) continue;
+
+            sb.append(element.getClassName()).append(".").append(element.getMethodName()).append(":").append(element.getLineNumber());
+            break;
+        }
+        sb.append(" - ");
+    }
+
+    /**
+     * 清理日志消息中的敏感信息
+     *
+     * @param message 日志消息
+     * @return 清理后的日志消息
+     */
+    private static String sanitizeMessage(String message) {
+        return message.replaceAll("(password|token|auth)=[^&]+", "$1=***");
+    }
+
+    // 日志刷新任务
+    private static final Runnable flushTask = new Runnable() {
+        @Override
+        public void run() {
+            // 刷新缓冲区到文件
+            flushBufferToFile();
+            // 重新安排刷新任务
+            scheduleFlushTask();
+        }
+    };
+
+    /**
+     * 安排日志刷新任务
+     */
+    private static void scheduleFlushTask() {
+        logHandler.postDelayed(flushTask, LOG_FLUSH_INTERVAL);
+    }
+
+    /**
+     * 刷新日志缓冲区到文件
+     */
+    private static synchronized void flushBufferToFile() {
+        if (logFilePath == null || logFilePath.isEmpty() || logBuffer.isEmpty()) return;
+
+        try {
+            File logFile = new File(logFilePath);
+            // 若文件大小超过限制则轮转日志文件
+            if (logFile.length() > MAX_LOG_FILE_SIZE) {
+                rotateLogFile(logFile);
+            }
+
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFile, true))) {
+                while (!logBuffer.isEmpty()) {
+                    String log = logBuffer.poll();
+                    if (log != null) {
+                        writer.write(log);
+                        writer.newLine();
+                        // 成功计数加1
+                        successCount.incrementAndGet();
                     }
                 }
+                // 通知日志写入成功
+                notifySuccess();
+            }
+        } catch (IOException e) {
+            // 失败计数加1
+            failureCount.incrementAndGet();
+            // 恢复失败的日志
+            recoverFailedLogs();
+            // 通知日志写入失败
+            notifyFailure();
+        }
+    }
+
+    /**
+     * 轮转日志文件
+     *
+     * @param currentFile 当前日志文件
+     */
+    private static void rotateLogFile(File currentFile) {
+        String backupPath = currentFile.getAbsolutePath() + ".bak";
+        File backupFile = new File(backupPath);
+
+        // 若备份文件存在则删除
+        if (backupFile.exists() && !backupFile.delete()) {
+            Log.w(TAG, "Failed to delete old backup: " + backupPath);
+        }
+
+        // 重命名当前日志文件为备份文件
+        if (!currentFile.renameTo(backupFile)) {
+            Log.w(TAG, "Failed to rotate log file");
+        }
+    }
+
+    /**
+     * 恢复失败的日志
+     */
+    private static void recoverFailedLogs() {
+        LinkedBlockingQueue<String> retryQueue = new LinkedBlockingQueue<>(logBuffer);
+        logBuffer.clear();
+        logBuffer.addAll(retryQueue);
+
+        // 若缓冲区已满则移除最早的日志
+        while (logBuffer.remainingCapacity() == 0) {
+            logBuffer.poll();
+        }
+    }
+
+    // 日志清理任务
+    private static final Runnable cleanupTask = new Runnable() {
+        @Override
+        public void run() {
+            // 删除旧日志
+            deleteOldLogs();
+            // 重新安排清理任务
+            scheduleCleanupTask();
+        }
+    };
+
+    /**
+     * 安排日志清理任务
+     */
+    private static void scheduleCleanupTask() {
+        logHandler.postDelayed(cleanupTask, TimeUnit.DAYS.toMillis(1));
+    }
+
+    /**
+     * 删除旧的日志文件
+     */
+    private static void deleteOldLogs() {
+        if (logFilePath == null) return;
+
+        File logDir = new File(logFilePath).getParentFile();
+        if (logDir == null || !logDir.exists()) return;
+
+        long cutoff = System.currentTimeMillis() - LOG_RETENTION_DAYS;
+        File[] files = logDir.listFiles(file -> file.getName().matches(".*\\.(log|bak)$"));
+
+        if (files == null) return;
+
+        // 删除超过保留时长的日志文件
+        for (File file : files) {
+            if (file.lastModified() < cutoff && !file.delete()) {
+                Log.w(TAG, "Failed to delete old log: " + file.getAbsolutePath());
             }
         }
+    }
+
+    /**
+     * 通知日志写入成功
+     */
+    private static void notifySuccess() {
+        if (globalLogCallback == null) return;
+
+        mainHandler.post(() -> {
+            int count = successCount.getAndSet(0);
+            if (count > 0) {
+                globalLogCallback.onLogSuccess(count);
+            }
+        });
+    }
+
+    /**
+     * 通知日志写入失败
+     */
+    private static void notifyFailure() {
+        if (globalLogCallback == null) return;
+
+        mainHandler.post(() -> {
+            int count = failureCount.getAndSet(0);
+            if (count > 0) {
+                globalLogCallback.onLogFailure(count);
+            }
+        });
     }
 
     /**
      * 处理日志缓冲区已满的情况
-     */
-    private static synchronized void handlePendingLogsFull() {
-        // 降低日志级别
-        if (currentLogLevel <= Log.DEBUG) {
-            setLogLevel(Log.WARN);
-            Log.w(LOG_TAG, "Pending logs queue is full, degrading log level to WARN.");
-        }
-
-        // 丢弃最旧的日志
-        while (pendingLogs.size() >= MAX_PENDING_LOGS) {
-            pendingLogs.poll();
-        }
-
-        // 通知用户
-        if (logCallback != null) {
-            EXECUTOR.execute(() -> {
-                logCallback.onPendingLogsFull(MAX_PENDING_LOGS);
-            });
-        }
-    }
-
-    /**
-     * 设置日志回调
      *
-     * @param callback 日志回调
+     * @param rejectedLog 被拒绝的日志消息
      */
-    public static synchronized void setLogCallback(LogCallback callback) {
-        logCallback = callback;
+    private static void handleBufferFull(String rejectedLog) {
+        // 失败计数加1
+        failureCount.incrementAndGet();
+
+        if (globalLogCallback != null) {
+            mainHandler.post(() -> globalLogCallback.onBufferFull(rejectedLog));
+        }
+
+        // 若不是错误日志则移除最早的日志
+        if (!rejectedLog.contains(" E/")) {
+            logBuffer.poll();
+        }
     }
 
     /**
-     * 调用日志回调
+     * 获取当前日期
      *
-     * @param success 是否成功
+     * @return 当前日期字符串
      */
-    private static synchronized void invokeLogCallback(boolean success) {
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastCallbackTime > CALLBACK_THROTTLE_PERIOD) {
-            if (logCallback != null) {
-                EXECUTOR.execute(() -> {
-                    synchronized (LogUtils.class) {
-                        if (success) {
-                            logCallback.onSuccess(successCount);
-                        } else {
-                            logCallback.onError(failureCount);
-                        }
-                    }
-                });
-            }
-            lastCallbackTime = currentTime;
-        }
-    }
-
-    /**
-     * 关闭线程池
-     */
-    public static void shutdownExecutor() {
-        EXECUTOR.shutdown();
-        try {
-            if (!EXECUTOR.awaitTermination(60, TimeUnit.SECONDS)) {
-                EXECUTOR.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            EXECUTOR.shutdownNow();
-        }
+    private static String getCurrentDate() {
+        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
     }
 
     /**
@@ -481,31 +556,24 @@ public class LogUtils {
      */
     public interface LogCallback {
         /**
-         * 当日志成功记录时调用
+         * 日志写入成功回调
          *
-         * @param successCount 成功记录的日志数量
+         * @param successCount 成功写入的日志数量
          */
-        void onSuccess(int successCount);
+        void onLogSuccess(int successCount);
 
         /**
-         * 当日志记录失败时调用
+         * 日志写入失败回调
          *
-         * @param failureCount 失败记录的日志数量
+         * @param failureCount 失败写入的日志数量
          */
-        void onError(int failureCount);
+        void onLogFailure(int failureCount);
 
         /**
-         * 当待处理日志队列已满时调用
+         * 日志缓冲区已满回调
          *
-         * @param maxPendingLogs 待处理日志的最大数量
+         * @param rejectedLog 被拒绝的日志消息
          */
-        void onPendingLogsFull(int maxPendingLogs);
-
-        /**
-         * 当日志写入耗时过长触发性能警报时调用
-         *
-         * @param duration 日志写入耗时（单位：毫秒）
-         */
-        void onPerformanceAlert(long duration);
+        void onBufferFull(String rejectedLog);
     }
 }
