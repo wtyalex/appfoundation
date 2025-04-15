@@ -465,8 +465,9 @@ public class WebViewUtils {
         @Override
         public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
             super.onReceivedError(view, request, error);
-            if (mPageLoadListener != null) {
-                mPageLoadListener.onPageError(error.getDescription().toString());
+            if (mPageLoadListener != null && request.isForMainFrame()) {
+                String errorDescription = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? error.getDescription().toString() : "Unknown error";
+                mPageLoadListener.onPageError(errorDescription);
             }
         }
 
