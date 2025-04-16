@@ -52,6 +52,20 @@ public class MapCoordinateConverter {
     }
 
     /**
+     * 将 WGS84 坐标转换为 BD-09 坐标
+     *
+     * @param wgsLat WGS84 纬度
+     * @param wgsLon WGS84 经度
+     * @return 转换后的 BD-09 坐标数组 [纬度, 经度]
+     */
+    public static double[] wgs84ToBd09(double wgsLat, double wgsLon) {
+        return handleConversion("WGS84 to BD-09", wgsLat, wgsLon, () -> {
+            double[] gcj = wgs84ToGcj02(wgsLat, wgsLon);
+            return gcj02ToBd09(gcj[0], gcj[1]);
+        });
+    }
+
+    /**
      * 将 GCJ-02 坐标转换为 WGS84 坐标
      *
      * @param gcjLat GCJ-02 纬度
@@ -76,7 +90,26 @@ public class MapCoordinateConverter {
             double mgLat = gcjLat + dLat;
             double mgLng = gcjLon + dLng;
 
-            return new double[]{round(gcjLat * 2 - mgLat, 7), round(gcjLon * 2 - mgLng, 7)};
+            return new double[]{gcjLat * 2 - mgLat, gcjLon * 2 - mgLng};
+        });
+    }
+
+    /**
+     * 将 GCJ-02 坐标转换为 BD-09 坐标
+     *
+     * @param gcjLat GCJ-02 纬度
+     * @param gcjLon GCJ-02 经度
+     * @return 转换后的 BD-09 坐标数组 [纬度, 经度]
+     */
+    public static double[] gcj02ToBd09(double gcjLat, double gcjLon) {
+        return handleConversion("GCJ-02 to BD-09", gcjLat, gcjLon, () -> {
+            double x = gcjLon;
+            double y = gcjLat;
+            double z = Math.sqrt(x * x + y * y) + 0.00002 * Math.sin(y * PI);
+            double theta = Math.atan2(y, x) + 0.000003 * Math.cos(x * PI);
+            double bdLon = z * Math.cos(theta) + 0.0065;
+            double bdLat = z * Math.sin(theta) + 0.006;
+            return new double[]{round(bdLat, 7), round(bdLon, 7)};
         });
     }
 
