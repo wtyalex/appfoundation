@@ -19,7 +19,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.io.SyncFailedException;
-import java.lang.ref.WeakReference;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -85,6 +86,9 @@ public class DownloadUtils {
         return instance;
     }
 
+    /**
+     * 私有构造方法，用于初始化OkHttpClient并启动超时监测
+     */
     private DownloadUtils() {
         this.client = createSecureClient();
         startTimeoutMonitor();
@@ -315,8 +319,10 @@ public class DownloadUtils {
 
         File finalFile = new File(context.savePath, context.fileName);
         if (tmpFile.renameTo(finalFile)) {
+            Log.d(TAG, "文件重命名成功：" + finalFile.getAbsolutePath());
             notifyCompletion(context, finalFile);
         } else {
+            Log.e(TAG, "文件重命名失败！源文件：" + tmpFile.length() + "字节，目标：" + finalFile.getAbsolutePath());
             handleFileFinalizeError(context, tmpFile);
         }
         cleanupTask(context.taskId, "下载完成");
@@ -800,8 +806,8 @@ public class DownloadUtils {
         final String savePath;
         // 文件名，定义了下载文件在本地存储的名称
         final String fileName;
-        // 下载回调接口的弱引用，避免内存泄漏，用于通知下载状态
-        final WeakReference<DownloadCallback> callbackRef;
+        //下载回调接口的软引用，在内存不足时可被回收以释放内存，用于通知下载状态
+        final Reference<DownloadCallback> callbackRef;
         // 已下载字节数，记录当前任务已完成的下载量
         final AtomicLong downloadedBytes = new AtomicLong();
         // 文件总字节数，代表整个文件的大小
@@ -833,7 +839,7 @@ public class DownloadUtils {
             this.url = url;
             this.savePath = path;
             this.fileName = name;
-            this.callbackRef = new WeakReference<>(callback);
+            this.callbackRef = new SoftReference<>(callback);
         }
     }
 
