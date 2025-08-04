@@ -7,6 +7,7 @@ import com.wty.foundation.common.utils.StringUtils;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.StringRes;
@@ -17,13 +18,15 @@ import androidx.annotation.StringRes;
  * @describe Toast工具类
  */
 public class ToastUtils {
+    private static final String TAG = "ToastUtils";
     private static Handler handler = new Handler(Looper.getMainLooper());
 
-    private ToastUtils() {}
+    private ToastUtils() {
+    }
 
     /**
      * 短时间的Toast
-     * 
+     *
      * @param msg toast消息
      */
     public static void showShort(String msg) {
@@ -32,7 +35,7 @@ public class ToastUtils {
 
     /**
      * 短时间的Toast
-     * 
+     *
      * @param msgId toast消息字符串资源Id
      */
     public static void showShort(@StringRes int msgId) {
@@ -63,10 +66,18 @@ public class ToastUtils {
         }
         if (isMainThread()) {
             Context context = AppContext.getInstance().getContext();
+            if (context == null) {
+                Log.e(TAG, "Context cannot be null");
+                return;
+            }
             Toast.makeText(context, msg, time).show();
         } else {
             handler.post(() -> {
                 Context context = AppContext.getInstance().getContext();
+                if (context == null) {
+                    Log.e(TAG, "Context cannot be null");
+                    return;
+                }
                 Toast.makeText(context, msg, time).show();
             });
         }

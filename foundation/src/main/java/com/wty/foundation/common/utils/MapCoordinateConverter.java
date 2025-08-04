@@ -1,9 +1,9 @@
 package com.wty.foundation.common.utils;
 
+import android.util.Log;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * 地图坐标转换工具类，提供不同地图坐标系之间的转换方法
@@ -36,15 +36,19 @@ public class MapCoordinateConverter {
                 return copyCoordinates(wgsLat, wgsLon);
             }
 
+            // 计算偏移量
             double dLat = transformLat(wgsLon - 105.0, wgsLat - 35.0);
             double dLon = transformLng(wgsLon - 105.0, wgsLat - 35.0);
             double radLat = wgsLat / 180.0 * PI;
             double magic = Math.sin(radLat);
             magic = 1 - EE * magic * magic;
             double sqrtMagic = Math.sqrt(magic);
+            // 转换纬度偏移为实际角度
             dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
+            // 转换经度偏移为实际角度
             dLon = (dLon * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
 
+            // 保留7位小数（约1cm精度）
             double mgLat = round(wgsLat + dLat, 7);
             double mgLon = round(wgsLon + dLon, 7);
             return new double[]{mgLat, mgLon};
@@ -60,6 +64,7 @@ public class MapCoordinateConverter {
      */
     public static double[] wgs84ToBd09(double wgsLat, double wgsLon) {
         return handleConversion("WGS84 to BD-09", wgsLat, wgsLon, () -> {
+            // 先转GCJ-02，再转BD-09
             double[] gcj = wgs84ToGcj02(wgsLat, wgsLon);
             return gcj02ToBd09(gcj[0], gcj[1]);
         });
@@ -78,6 +83,7 @@ public class MapCoordinateConverter {
                 return copyCoordinates(gcjLat, gcjLon);
             }
 
+            // 计算偏移量（反向）
             double dLat = transformLat(gcjLon - 105.0, gcjLat - 35.0);
             double dLng = transformLng(gcjLon - 105.0, gcjLat - 35.0);
             double radLat = gcjLat / 180.0 * PI;
@@ -87,6 +93,7 @@ public class MapCoordinateConverter {
             dLat = (dLat * 180.0) / ((A * (1 - EE)) / (magic * sqrtMagic) * PI);
             dLng = (dLng * 180.0) / (A / sqrtMagic * Math.cos(radLat) * PI);
 
+            // 反向计算原始坐标
             double mgLat = gcjLat + dLat;
             double mgLng = gcjLon + dLng;
 
@@ -105,6 +112,7 @@ public class MapCoordinateConverter {
         return handleConversion("GCJ-02 to BD-09", gcjLat, gcjLon, () -> {
             double x = gcjLon;
             double y = gcjLat;
+            // 百度加密偏移
             double z = Math.sqrt(x * x + y * y) + 0.00002 * Math.sin(y * PI);
             double theta = Math.atan2(y, x) + 0.000003 * Math.cos(x * PI);
             double bdLon = z * Math.cos(theta) + 0.0065;
@@ -122,6 +130,7 @@ public class MapCoordinateConverter {
      */
     public static double[] bd09ToGcj02(double bdLat, double bdLon) {
         return handleConversion("BD-09 to GCJ-02", bdLat, bdLon, () -> {
+            // 百度解密偏移
             double x = bdLon - 0.0065;
             double y = bdLat - 0.006;
             double z = Math.sqrt(x * x + y * y) - 0.00002 * Math.sin(y * PI);
@@ -139,13 +148,14 @@ public class MapCoordinateConverter {
      */
     public static double[] bd09ToWgs84(double bdLat, double bdLon) {
         return handleConversion("BD-09 to WGS84", bdLat, bdLon, () -> {
+            // 先转GCJ-02，再转WGS84
             double[] gcj = bd09ToGcj02(bdLat, bdLon);
             return gcj02ToWgs84(gcj[0], gcj[1]);
         });
     }
 
     /**
-     * 统一异常处理模板
+     * 坐标转换函数式接口（用于统一异常处理）
      */
     private interface CoordinateConversion {
         double[] convert() throws Exception;
@@ -154,27 +164,27 @@ public class MapCoordinateConverter {
     /**
      * 处理坐标转换，包含参数校验和异常处理
      *
-     * @param conversionName 转换名称
+     * @param conversionName 转换名称（用于日志）
      * @param lat            纬度
      * @param lon            经度
-     * @param conversion     坐标转换接口
-     * @return 转换后的坐标数组
+     * @param conversion     坐标转换实现
+     * @return 转换后的坐标数组（转换失败返回原始坐标）
      */
     private static double[] handleConversion(String conversionName, double lat, double lon, CoordinateConversion conversion) {
-        // 防御性拷贝原始坐标
+        // 防御性拷贝原始坐标（避免外部修改影响）
         final double[] fallback = copyCoordinates(lat, lon);
 
-        // 参数基础校验
+        // 参数校验（经纬度范围、非特殊值）
         if (!isValidCoordinate(lat, lon)) {
-            Logger.getLogger(TAG).log(Level.SEVERE, String.format("Invalid input for %s: lat=%.6f, lon=%.6f", conversionName, lat, lon));
+            Log.e(TAG, String.format("Invalid input for %s: lat=%.6f, lon=%.6f", conversionName, lat, lon));
             return fallback;
         }
 
-        // 执行转换
+        // 执行转换并捕获异常
         try {
             return conversion.convert();
         } catch (Exception e) {
-            Logger.getLogger(TAG).log(Level.SEVERE, String.format("%s conversion failed for (%.6f,%.6f): %s", conversionName, lat, lon, e.getMessage()), e);
+            Log.e(TAG, String.format("%s conversion failed for (%.6f,%.6f): %s", conversionName, lat, lon, e.getMessage()), e);
             return fallback;
         }
     }
@@ -251,17 +261,15 @@ public class MapCoordinateConverter {
      */
     private static double round(double value, int places) {
         if (places < 0) {
-            Logger.getLogger(TAG).log(Level.SEVERE, "Invalid round places: " + places);
+            Log.e(TAG, "Invalid round places: " + places);
             return value;
         }
 
         try {
+            // 使用BigDecimal避免double直接运算的精度误差
             return new BigDecimal(Double.toString(value)).setScale(places, RoundingMode.HALF_UP).doubleValue();
-        } catch (NumberFormatException e) {
-            Logger.getLogger(TAG).log(Level.SEVERE, "Rounding error for value: " + value, e);
-            return value;
-        } catch (ArithmeticException e) {
-            Logger.getLogger(TAG).log(Level.SEVERE, "Rounding arithmetic error: " + e.getMessage());
+        } catch (NumberFormatException | ArithmeticException e) {
+            Log.e(TAG, "Rounding error for value: " + value, e);
             return value;
         }
     }

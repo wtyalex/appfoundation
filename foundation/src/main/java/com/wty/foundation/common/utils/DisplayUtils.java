@@ -2,7 +2,6 @@ package com.wty.foundation.common.utils;
 
 import android.content.Context;
 import android.util.Log;
-import android.util.TypedValue;
 
 import com.wty.foundation.common.init.AppContext;
 
@@ -59,9 +58,9 @@ public class DisplayUtils {
      * @param dpValue 需转换的 dp 值
      * @return 对应的 px 值
      */
-    public static float dpToPx(float dpValue) {
+    public static int dpToPx(float dpValue) {
         float density = getDensity();
-        return dpValue * density;
+        return Math.round(dpValue * density);
     }
 
     /**
@@ -70,9 +69,9 @@ public class DisplayUtils {
      * @param pxValue 需转换的 px 值
      * @return 对应的 dp 值
      */
-    public static float pxToDp(float pxValue) {
+    public static int pxToDp(float pxValue) {
         float density = getDensity();
-        return pxValue / density;
+        return Math.round(pxValue / density);
     }
 
     /**
@@ -81,9 +80,9 @@ public class DisplayUtils {
      * @param spValue 需转换的 sp 值
      * @return 对应的 px 值
      */
-    public static float spToPx(float spValue) {
+    public static int spToPx(float spValue) {
         float scaledDensity = getScaledDensity();
-        return spValue * scaledDensity;
+        return Math.round(spValue * scaledDensity);
     }
 
     /**
@@ -92,23 +91,8 @@ public class DisplayUtils {
      * @param pxValue 需转换的 px 值
      * @return 对应的 sp 值
      */
-    public static float pxToSp(float pxValue) {
+    public static int pxToSp(float pxValue) {
         float scaledDensity = getScaledDensity();
-        return pxValue / scaledDensity;
-    }
-
-    /**
-     * 根据单位将 dp 或 sp 转换为 px
-     *
-     * @param value 单位值
-     * @param unit  单位（TypedValue.COMPLEX_UNIT_DIP 或 TypedValue.COMPLEX_UNIT_SP）
-     * @return 对应的 px 值
-     */
-    public static float convertToPx(float value, int unit) {
-        Context context = getContext();
-        if (context == null) {
-            return 0;
-        }
-        return TypedValue.applyDimension(unit, value, context.getResources().getDisplayMetrics());
+        return Math.round(pxValue / scaledDensity);
     }
 }

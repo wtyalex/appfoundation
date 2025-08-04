@@ -1,18 +1,16 @@
 package com.wty.foundation.common.utils;
 
+import android.util.Log;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * 关闭资源的工具类，提供了多种关闭 Closeable 和 AutoCloseable 资源的方法
  */
 public class CloseableUtils {
     private static final String TAG = "CloseableUtils";
-    // 日志记录器，用于记录错误信息
-    private static final Logger LOGGER = Logger.getLogger(CloseableUtils.class.getName());
 
     // 私有构造函数，防止外部实例化该工具类
     private CloseableUtils() {
@@ -126,13 +124,13 @@ public class CloseableUtils {
      * @param e       异常对象
      */
     private static void logError(String message, Throwable e) {
-        LOGGER.log(Level.SEVERE, TAG + ": " + message, e);
+        Log.e(TAG, message, e);
     }
 
     /**
      * 关闭混合的 Closeable 和 AutoCloseable 资源列表
      *
-     * @param resources 资源列表，若为 null 则不执行操作
+     * @param resources 资源列表，若为 null 或包含 null 元素则跳过对应元素
      */
     public static void closeAllMixed(List<?> resources) {
         if (resources == null) return;

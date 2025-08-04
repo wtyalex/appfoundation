@@ -1,92 +1,93 @@
 package com.wty.foundation.common.utils;
 
+import android.util.Log;
+
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+/**
+ * MD5加密工具类
+ * 提供字符串和字节数组的MD5哈希计算功能，返回32位小写十六进制字符串
+ */
 public class MD5 {
-
-    private static final Logger logger = Logger.getLogger(MD5.class.getName());
+    private static final String TAG = "MD5";
+    private static final String UTF8 = "UTF-8";
+    private static final String MD5_ALGORITHM = "MD5";
 
     /**
-     * 计算输入字符串的MD5哈希值
+     * 计算字符串的MD5哈希值
      *
-     * @param content 待计算MD5的字符串，若为null则视为空字符串
-     * @return 输入字符串的MD5哈希值，若计算失败则返回空字符串
+     * @param content 待计算字符串（null将被视为空字符串处理）
+     * @return 32位小写MD5哈希值，计算失败时返回空字符串
      */
     public static String md5(String content) {
-        String processedContent = (content == null) ? "" : content;
+        // 安全处理空指针，将null转换为空字符串
+        String safeContent = content == null ? "" : content;
+
+        // 将字符串转换为字节数组（优先使用UTF-8编码）
         byte[] inputBytes;
         try {
-            // 将处理后的字符串按UTF-8编码为字节数组
-            inputBytes = encodeUtf8(processedContent);
-        } catch (Exception e) {
-            // 记录字符串编码异常信息，使用空字节数组继续执行
-            logger.log(Level.SEVERE, "字符串编码异常，使用空字节数组继续执行", e);
-            inputBytes = new byte[0];
-        }
-        byte[] hashBytes;
-        try {
-            // 获取MD5算法的消息摘要实例
-            MessageDigest digest = MessageDigest.getInstance("MD5");
-            // 计算输入字节数组的MD5哈希值
-            hashBytes = digest.digest(inputBytes);
-        } catch (NoSuchAlgorithmException e) {
-            // 记录MD5算法不可用的异常信息
-            logger.log(Level.SEVERE, "MD5算法不可用", e);
-            return "";
-        } catch (Exception e) {
-            // 记录计算MD5时发生的未知异常信息
-            logger.log(Level.SEVERE, "计算MD5时发生未知异常", e);
-            return "";
-        }
-        // 将字节数组转换为十六进制字符串
-        return bytesToHex(hashBytes);
-    }
-
-    /**
-     * 将字符串按UTF-8编码为字节数组
-     *
-     * @param content 待编码的字符串
-     * @return 编码后的字节数组，若系统不支持UTF-8编码则使用平台默认编码
-     */
-    private static byte[] encodeUtf8(String content) {
-        try {
-            // 按UTF-8编码字符串为字节数组
-            return content.getBytes("UTF-8");
+            inputBytes = safeContent.getBytes(UTF8);
         } catch (UnsupportedEncodingException e) {
-            // 记录系统不支持UTF-8编码的异常信息，使用平台默认编码
-            logger.log(Level.SEVERE, "系统不支持UTF-8编码，使用平台默认编码", e);
-            return content.getBytes();
+            Log.e(TAG, "不支持UTF-8编码，将使用平台默认编码", e);
+            inputBytes = safeContent.getBytes();
         }
+
+        // 复用字节数组的MD5计算逻辑
+        return calculateMd5(inputBytes);
     }
 
     /**
-     * 将字节数组转换为十六进制字符串
+     * 计算字节数组的MD5值
      *
-     * @param bytes 待转换的字节数组
-     * @return 转换后的十六进制字符串，若字节数组为null则返回空字符串
+     * @param data 待计算的字节数组（null将返回空字符串）
+     * @return 32位小写MD5字符串，计算失败时返回空字符串
+     */
+    public static String calculateMd5(byte[] data) {
+        // 处理空输入
+        if (data == null) {
+            Log.w(TAG, "calculateMd5: 输入字节数组为null，返回空字符串");
+            return "";
+        }
+
+        try {
+            // 获取MD5消息摘要实例
+            MessageDigest digest = MessageDigest.getInstance(MD5_ALGORITHM);
+            // 计算哈希值
+            byte[] hashBytes = digest.digest(data);
+            // 转换为十六进制字符串
+            return bytesToHex(hashBytes);
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(TAG, "MD5算法不可用", e);
+        }
+        return "";
+    }
+
+    /**
+     * 将字节数组转换为32位小写十六进制字符串
+     * 确保每个字节转换为两位十六进制数（不足补0）
+     *
+     * @param bytes 原始字节数组（null将返回空字符串）
+     * @return 转换后的32位小写十六进制字符串
      */
     private static String bytesToHex(byte[] bytes) {
         if (bytes == null) {
             return "";
         }
 
-        // 用于构建十六进制字符串的StringBuilder
-        StringBuilder hex = new StringBuilder(bytes.length * 2);
+        StringBuilder hexBuilder = new StringBuilder();
         for (byte b : bytes) {
-            // 确保字节为无符号值
-            int value = b & 0xFF;
-            if (value < 0x10) {
-                // 若值小于16，在前面补零
-                hex.append('0');
+            // 将字节转换为无符号整数（0~255）
+            int unsignedByte = b & 0xFF;
+            // 转换为十六进制字符串
+            String hexStr = Integer.toHexString(unsignedByte);
+            // 补0确保两位长度
+            if (hexStr.length() == 1) {
+                hexBuilder.append('0');
             }
-            // 将无符号值转换为十六进制字符串并追加到StringBuilder中
-            hex.append(Integer.toHexString(value));
+            hexBuilder.append(hexStr);
         }
-        // 返回构建好的十六进制字符串
-        return hex.toString();
+        return hexBuilder.toString();
     }
 }

@@ -12,25 +12,23 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class MapUtils {
     // 日志标签
     private static final String TAG = "MapUtils";
-    // 日志记录器
-    private static final Logger logger = Logger.getLogger("MapUtils");
     // 地球半径，单位：米
     private static final double EARTH_RADIUS = 6371000.0;
+    // 1度纬度对应的米数（近似值）
+    private static final double DEGREES_TO_METERS = 111319.9;
     // 默认最大尝试次数
     private static final int DEFAULT_MAX_ATTEMPTS = 200;
-    // 坐标精度
+    // 坐标精度（小数点后7位，约1厘米精度）
     private static final int COORDINATE_PRECISION = 7;
-    // 默认地理坐标点
+    // 默认地理坐标点（赤道原点）
     private static final GeoPoint DEFAULT_POINT = new GeoPoint(0.0, 0.0);
-    // 默认半径
+    // 默认半径（50米）
     private static final double DEFAULT_RADIUS = 50.0;
-    // 默认数量
+    // 默认生成数量
     private static final int DEFAULT_COUNT = 10;
     // 最大数量限制，防止滥用
     private static final int MAX_COUNT = 1000;
@@ -57,7 +55,7 @@ public class MapUtils {
         try {
             return safeGenerateInternal(center, safeRadius, Collections.emptySet(), 0.0, 1);
         } catch (Exception e) {
-            logError("safeGenerate", "Failed to generate safe GeoPoint, returning default point: " + e.getMessage());
+            logError("safeGenerate", "生成坐标失败，返回默认点: " + e.getMessage());
             return DEFAULT_POINT;
         }
     }
@@ -80,7 +78,7 @@ public class MapUtils {
         try {
             return safeGenerateInternal(safeCenter, safeRadius, safeExisting, safeMinDistance, DEFAULT_MAX_ATTEMPTS);
         } catch (Exception e) {
-            logError("safeGenerateUnique", "Failed to generate unique GeoPoint, returning default point: " + e.getMessage());
+            logError("safeGenerateUnique", "生成唯一坐标失败，返回默认点: " + e.getMessage());
             return DEFAULT_POINT;
         }
     }
@@ -116,11 +114,10 @@ public class MapUtils {
                 // 尝试生成一个唯一的地理坐标点
                 GeoPoint point = safeGenerateInternal(safeCenter, safeRadius, uniqueSet, safeMinDistance, DEFAULT_MAX_ATTEMPTS);
                 result.add(point);
-                uniqueSet.add(point); // 添加到set,用于保证批量生产的唯一性
-
+                uniqueSet.add(point); // 添加到集合确保唯一性
             } catch (Exception e) {
                 // 若生成失败，记录错误日志并退出循环
-                logError("safeBatchGenerate", "无法生成足够唯一坐标，已生成数量：" + result.size() + ". " + e.getMessage());
+                logError("safeBatchGenerate", "无法生成足够唯一坐标，已生成数量：" + result.size() + ". 原因: " + e.getMessage());
                 break;
             }
         }
@@ -129,7 +126,7 @@ public class MapUtils {
     }
 
     /**
-     * 内部方法，安全地生成地理坐标点。
+     * 内部方法，安全地生成地理坐标点
      *
      * @param center      中心点
      * @param radius      半径，单位：米
@@ -164,12 +161,12 @@ public class MapUtils {
         }
 
         // 超过最大尝试次数，返回默认值
-        logError("safeGenerateInternal", "无法在 " + maxAttempts + " 次尝试后生成唯一坐标，返回默认坐标.");
+        logError("safeGenerateInternal", "超过最大尝试次数(" + maxAttempts + ")，无法生成符合条件的坐标，返回默认坐标.");
         return DEFAULT_POINT;
     }
 
     /**
-     * 生成一个地理坐标点
+     * 生成一个地理坐标点（基于中心点和半径的随机点）
      *
      * @param center 中心点
      * @param radius 半径，单位：米
@@ -177,25 +174,33 @@ public class MapUtils {
      * @return 生成的地理坐标点
      */
     private static GeoPoint generateCoordinate(GeoPoint center, double radius, ThreadLocalRandom random) {
-        // 生成一个随机角度
+        // 生成随机角度（0~2π）
         double angle = random.nextDouble() * 2 * Math.PI;
-        // 生成一个随机距离
+        // 生成随机距离（基于半径的均匀分布，避免点集中在边缘）
         double distance = radius * Math.sqrt(random.nextDouble());
 
-        // 计算纬度偏移量
-        double latOffset = (distance * Math.cos(angle)) / 111319.9;
-        // 计算经度偏移量
-        double lonOffset = (distance * Math.sin(angle)) / (111319.9 * Math.cos(Math.toRadians(center.latitude)));
+        // 计算纬度偏移量（1度纬度 ≈ 111319.9米）
+        double latOffset = (distance * Math.cos(angle)) / DEGREES_TO_METERS;
+        // 计算经度偏移量（需考虑当前纬度的余弦值）
+        double lonOffset = (distance * Math.sin(angle)) / (DEGREES_TO_METERS * Math.cos(Math.toRadians(center.latitude)));
 
-        return new GeoPoint(center.latitude + latOffset, center.longitude + lonOffset);
+        // 计算新坐标并强制边界约束
+        double newLat = center.latitude + latOffset;
+        double newLon = center.longitude + lonOffset;
+
+        // 确保纬度在[-90, 90]，经度在[-180, 180]
+        newLat = Math.max(-90.0, Math.min(90.0, newLat));
+        newLon = Math.max(-180.0, Math.min(180.0, newLon));
+
+        return new GeoPoint(newLat, newLon);
     }
 
     /**
-     * 计算两个地理坐标点之间的方位角
+     * 计算两个地理坐标点之间的方位角（从A到B的方向）
      *
      * @param a 第一个地理坐标点
      * @param b 第二个地理坐标点
-     * @return 方位角，单位：度，计算失败，返回默认值
+     * @return 方位角，单位：度（0~360），计算失败返回0.0
      */
     public static double calculateBearing(GeoPoint a, GeoPoint b) {
         if (a == null || b == null) {
@@ -212,9 +217,10 @@ public class MapUtils {
             double y = Math.sin(lon2 - lon1) * Math.cos(lat2);
             double x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
             double bearing = Math.atan2(y, x);
+            // 转换为0~360度
             return (bearing + Math.PI) % (2 * Math.PI) * 180 / Math.PI;
         } catch (Exception e) {
-            logError("calculateBearing", "Failed to calculate bearing: " + e.getMessage());
+            logError("calculateBearing", "方位角计算失败: " + e.getMessage());
             return 0.0;
         }
     }
@@ -234,7 +240,8 @@ public class MapUtils {
         }
         double safeRadius = correctRadius(radius);
         double distance = calculateDistance(center, point);
-        return distance <= safeRadius + 1e-9; // 考虑浮点误差
+        // 考虑浮点计算误差，增加微小偏移量
+        return distance <= safeRadius + 1e-9;
     }
 
     /**
@@ -256,9 +263,14 @@ public class MapUtils {
      * @return 若有效返回true，否则返回false
      */
     private static boolean isValidCandidate(GeoPoint candidate, Set<GeoPoint> existing, double minDistance) {
-        if (candidate == null || !isValidCoordinate(candidate)) return false;
-        if (existing.isEmpty()) return true;
+        if (candidate == null || !isValidCoordinate(candidate)) {
+            return false;
+        }
+        if (existing.isEmpty() || minDistance <= 0) {
+            return true;
+        }
 
+        // 检查与所有已有点的距离
         for (GeoPoint p : existing) {
             if (calculateDistance(p, candidate) < minDistance) {
                 return false;
@@ -274,7 +286,7 @@ public class MapUtils {
      * @param b 第二个地理坐标点
      * @return 距离，单位：米，若计算失败返回Double.MAX_VALUE
      */
-    private static double calculateDistance(GeoPoint a, GeoPoint b) {
+    public static double calculateDistance(GeoPoint a, GeoPoint b) {
         if (a == null || b == null) {
             logInvalidParameter("calculateDistance", "GeoPoint", (a == null ? "a" : "b"));
             return Double.MAX_VALUE;
@@ -306,9 +318,9 @@ public class MapUtils {
         double sinHalfLat = Math.sin(dLat / 2);
         double sinHalfLon = Math.sin(dLon / 2);
 
-        double aa = sinHalfLat * sinHalfLat + Math.cos(lat1) * Math.cos(lat2) * sinHalfLon * sinHalfLon;
+        double aHaversine = sinHalfLat * sinHalfLat + Math.cos(lat1) * Math.cos(lat2) * sinHalfLon * sinHalfLon;
 
-        return EARTH_RADIUS * 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+        return EARTH_RADIUS * 2 * Math.atan2(Math.sqrt(aHaversine), Math.sqrt(1 - aHaversine));
     }
 
     /**
@@ -370,26 +382,28 @@ public class MapUtils {
      * @param value      参数值
      */
     private static void logInvalidParameter(String methodName, String paramName, Object value) {
-        Log.w(TAG, "[" + methodName + "] Invalid parameter: " + paramName + " = " + value + ". Using default value.");
-        logger.log(Level.WARNING, "[" + methodName + "] Invalid parameter: " + paramName + " = " + value + ". Using default value.");
+        Log.w(TAG, "[" + methodName + "] 无效参数: " + paramName + " = " + value + ". 使用默认值.");
     }
 
     /**
      * 记录错误日志
      *
-     * @param message 错误信息
+     * @param methodName 方法名
+     * @param message    错误信息
      */
     private static void logError(String methodName, String message) {
         Log.e(TAG, "[" + methodName + "] " + message);
-        logger.log(Level.SEVERE, "[" + methodName + "] " + message);
     }
 
+    /**
+     * 地理坐标点模型
+     */
     public static final class GeoPoint {
-        // 纬度
+        // 纬度（-90~90）
         public final double latitude;
-        // 经度
+        // 经度（-180~180）
         public final double longitude;
-        // 哈希值
+        // 预计算的哈希值（提升集合操作效率）
         private final int hash;
 
         /**
@@ -408,7 +422,7 @@ public class MapUtils {
          * 对数值进行四舍五入
          *
          * @param value 输入的数值
-         * @return 四舍五入后的数值
+         * @return 四舍五入后的数值（保留7位小数）
          */
         private static double round(double value) {
             return BigDecimal.valueOf(value).setScale(COORDINATE_PRECISION, RoundingMode.HALF_UP).doubleValue();
