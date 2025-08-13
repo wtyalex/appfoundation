@@ -21,6 +21,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+/**
+ * 文件工具类
+ * 功能包括：路径获取、文件内容读写、文件操作（删除、复制、移动等）、目录操作等。
+ */
 public class FileUtils {
 
     private static final String TAG = "FileUtils";
@@ -79,9 +83,50 @@ public class FileUtils {
         try {
             return file.getCanonicalPath();
         } catch (IOException e) {
-            // 记录异常
             Log.e(TAG, "Failed to get canonical path for file", e);
             return file.getAbsolutePath(); // 发生异常时回退到绝对路径
+        }
+    }
+
+    /**
+     * 写入内容到文件
+     *
+     * @param file    文件对象
+     * @param content 写入的内容
+     * @return 是否写入成功
+     */
+    public static boolean writeToFile(File file, String content) {
+        if (file == null || content == null) {
+            Log.e(TAG, "writeToFile: invalid parameters");
+            return false;
+        }
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(content.getBytes());
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to write content to file: " + file.getPath(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 从文件读取内容
+     *
+     * @param file 文件对象
+     * @return 读取的内容
+     */
+    public static String readFromFile(File file) {
+        if (file == null || !file.exists()) {
+            Log.e(TAG, "readFromFile: file does not exist");
+            return null;
+        }
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] buffer = new byte[(int) file.length()];
+            fis.read(buffer);
+            return new String(buffer);
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to read content from file: " + file.getPath(), e);
+            return null;
         }
     }
 
@@ -234,7 +279,6 @@ public class FileUtils {
         } else {
             // 对于较低版本的 Android，使用传统的输入输出流进行复制
             try (InputStream in = new FileInputStream(srcFile); OutputStream out = new FileOutputStream(destFile)) {
-
                 byte[] buffer = new byte[1024];
                 int bytesRead;
                 while ((bytesRead = in.read(buffer)) != -1) {
