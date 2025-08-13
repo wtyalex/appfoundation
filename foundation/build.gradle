@@ -41,7 +41,6 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    implementation 'com.jakewharton:disklrucache:2.0.2'
     // EventBus
     api 'org.greenrobot:eventbus:3.3.1'
     // Gson
@@ -60,6 +59,11 @@ dependencies {
     api 'io.reactivex.rxjava3:rxandroid:3.0.2'
     //让Retrofit支持Rxjava2
     api 'com.squareup.retrofit2:adapter-rxjava3:2.9.0'
+    // DiskLruCache
+    api 'com.jakewharton:disklrucache:2.0.2'
+    // Parceler
+    api 'org.parceler:parceler-api:1.1.12'
+    annotationProcessor 'org.parceler:parceler:1.1.12'
     // Zxing
     api 'com.google.zxing:core:3.4.1'
     api 'com.journeyapps:zxing-android-embedded:4.3.0'
