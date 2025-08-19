@@ -54,18 +54,32 @@ public class ScreenUtils {
     /**
      * 获取屏幕方向
      *
+     * @param context 上下文（建议传入Activity，若传入Application上下文可能返回默认方向）
      * @return 屏幕方向，如果无法确定则返回 -1
      */
-    public static int getScreenOrientation() {
-        Activity activity = getActivityFromContext();
-        if (activity != null) {
-            return activity.getResources().getConfiguration().orientation;
+    public static int getScreenOrientation(Context context) {
+        if (context == null) {
+            return -1;
         }
-        return -1; // 返回-1表示无法确定
+        if (context instanceof Activity) {
+            return context.getResources().getConfiguration().orientation;
+        } else {
+            return context.getResources().getConfiguration().orientation;
+        }
     }
 
     /**
-     * 获取屏幕的物理尺寸（毫米）
+     * 判断屏幕是否为横屏
+     *
+     * @param context 上下文（建议传入Activity）
+     * @return 如果屏幕处于横屏模式，则返回 true；否则返回 false
+     */
+    public static boolean isLandscape(Context context) {
+        return getScreenOrientation(context) == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    /**
+     * 获取屏幕的物理尺寸（像素）
      *
      * @return 物理尺寸的宽高点对象
      */
@@ -77,15 +91,6 @@ public class ScreenUtils {
             return size;
         }
         return new Point(-1, -1); // 无法获取时返回无效值
-    }
-
-    /**
-     * 判断屏幕是否为横屏
-     *
-     * @return 如果屏幕处于横屏模式，则返回 true；否则返回 false
-     */
-    public static boolean isLandscape() {
-        return getScreenOrientation() == Configuration.ORIENTATION_LANDSCAPE;
     }
 
     /**
@@ -170,16 +175,6 @@ public class ScreenUtils {
      */
     private static DisplayMetrics getDisplayMetrics() {
         return AppContext.getInstance().getContext().getResources().getDisplayMetrics();
-    }
-
-    /**
-     * 尝试从上下文中获取Activity实例
-     *
-     * @return 如果上下文是Activity，则返回该Activity；否则返回null
-     */
-    private static Activity getActivityFromContext() {
-        Context context = AppContext.getInstance().getContext();
-        return context instanceof Activity ? (Activity) context : null;
     }
 
     /**
