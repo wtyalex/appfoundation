@@ -21,11 +21,13 @@ import com.wty.foundation.core.utils.ResourceSetting;
 public abstract class BaseActivity extends AppCompatActivity implements View.OnClickListener {
     private static final String LOADING_DIALOG = "loading_dialog";
     private LoadDialog mLoadDialog;
+    private InputMethodManager mInputMethodManager;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStatusBarStyle();
+        mInputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         Fragment loadDialog = getSupportFragmentManager().findFragmentByTag(LOADING_DIALOG);
         if (loadDialog instanceof DialogFragment) {
             mLoadDialog = (LoadDialog) loadDialog;
@@ -34,13 +36,61 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        // 获取当前获得焦点的View
         if (ev.getAction() == MotionEvent.ACTION_DOWN) {
-            View view = getCurrentFocus();
-            // 调用方法判断是否需要隐藏键盘
-            hideKeyboard(ev, view);
+            View currentFocus = getCurrentFocus();
+            if (currentFocus instanceof EditText) {
+                if (mInputMethodManager != null && shouldHideKeyboard(ev, currentFocus)) {
+                    hideSoftInput(currentFocus.getWindowToken());
+                }
+            }
         }
         return super.dispatchTouchEvent(ev);
+    }
+
+    /**
+     * 判断是否应该隐藏键盘
+     *
+     * @param event 触摸事件
+     * @param view  焦点View
+     * @return 是否需要隐藏
+     */
+    private boolean shouldHideKeyboard(MotionEvent event, View view) {
+        try {
+            int[] location = {0, 0};
+            view.getLocationOnScreen(location);
+            int left = location[0];
+            int top = location[1];
+            int right = left + view.getWidth();
+            int bottom = top + view.getHeight();
+
+            // 触摸点的屏幕坐标
+            float x = event.getRawX();
+            float y = event.getRawY();
+
+            // 检查触摸点是否在EditText外部
+            return x < left || x > right || y < top || y > bottom;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 隐藏软键盘
+     *
+     * @param windowToken 窗口Token
+     */
+    private void hideSoftInput(IBinder windowToken) {
+        if (windowToken == null) {
+            return;
+        }
+        try {
+            if (mInputMethodManager != null) {
+                mInputMethodManager.hideSoftInputFromWindow(windowToken, InputMethodManager.HIDE_NOT_ALWAYS);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -51,6 +101,7 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
     protected void onDestroy() {
         super.onDestroy();
         closeLoadDialog();
+        mInputMethodManager = null;
     }
 
     protected void setStatusBarStyle() {
@@ -76,35 +127,6 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
     protected void closeLoadDialog() {
         if (mLoadDialog != null && mLoadDialog.isShowing()) {
             mLoadDialog.dismiss();
-        }
-    }
-
-    /**
-     * 根据传入控件的坐标和用户的焦点坐标，判断是否隐藏键盘，如果点击的位置在控件内，则不隐藏键盘
-     *
-     * @param view  控件view
-     * @param event 焦点位置
-     * @return 是否隐藏
-     */
-    private void hideKeyboard(MotionEvent event, View view) {
-        try {
-            if (view instanceof EditText) {
-                int[] location = {0, 0};
-                view.getLocationInWindow(location);
-                int left = location[0], top = location[1], right = left + view.getWidth(),
-                        bootom = top + view.getHeight();
-                // （判断是不是EditText获得焦点）判断焦点位置坐标是否在控件所在区域内，如果位置在控件区域外，则隐藏键盘
-                if (event.getRawX() < left || event.getRawX() > right || event.getY() < top
-                        || event.getRawY() > bootom) {
-                    // 隐藏键盘
-                    IBinder token = view.getWindowToken();
-                    InputMethodManager inputMethodManager =
-                            (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                    inputMethodManager.hideSoftInputFromWindow(token, InputMethodManager.HIDE_NOT_ALWAYS);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 

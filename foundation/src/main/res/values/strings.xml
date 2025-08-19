@@ -1,4 +1,13 @@
 <resources>
     <string name="regular">sans-serif</string>
     <string name="medium">sans-serif-medium</string>
+    <string name="dev_mode_title">开发者错误报告</string>
+    <string name="crash_title">程序遇到问题</string>
+    <string name="crash_message">很抱歉，应用发生错误，是否重新启动？</string>
+    <string name="restart">重新启动</string>
+    <string name="restart_failed">重新启动失败</string>
+    <string name="exit">退出</string>
+    <string name="copy_log">复制日志</string>
+    <string name="log_copied">日志已复制到剪贴板</string>
+    <string name="log_copy_failed">复制日志失败</string>
 </resources>
