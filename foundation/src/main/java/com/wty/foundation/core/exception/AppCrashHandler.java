@@ -32,6 +32,8 @@ import android.util.Log;
 
 import androidx.annotation.RequiresApi;
 
+import com.wty.foundation.common.init.ActivityLifecycleManager;
+import com.wty.foundation.common.utils.SPUtils;
 import com.wty.foundation.core.base.activity.CrashDisplayActivity;
 
 import java.io.File;
@@ -55,12 +57,14 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
     private static final String TAG = "AppCrashHandler";
     private static final int DEFAULT_MAX_LOG_FILES = 20;
     private static final String CRASH_LOG_SUBDIR = "CrashLogs";
+    private static final String SP_KEY_LAST_CRASH_TIME = "app_crash_last_time";
     private static AppCrashHandler instance;
 
     private final Context mContext;
     private final Thread.UncaughtExceptionHandler mDefaultHandler;
     private final String mAppName;
-    private final List<CrashListener> mListeners = new ArrayList<>();
+    private final SPUtils mSpUtils;
+    private final ActivityLifecycleManager mActivityLifecycleManager;
 
     // 配置参数
     private int mMaxLogFiles = DEFAULT_MAX_LOG_FILES;
@@ -70,9 +74,15 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
     private boolean mShowCrashInfo = false;
     private boolean mShowCrashActivity = true;
     private boolean mSaveLogFile = false;
+    private long mCrashInterval = 5000;
+    private boolean mTrackActivities = true;
     private Class<? extends Activity> mRestartActivity;
     private Class<? extends Activity> mCrashActivity = CrashDisplayActivity.class;
+    private final List<CrashListener> mListeners = new ArrayList<>();
 
+    /**
+     * 崩溃监听接口
+     */
     public interface CrashListener {
         void onCrashOccurred(Thread thread, Throwable ex, String crashLog);
 
@@ -83,16 +93,34 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         }
     }
 
+    /**
+     * 私有构造函数
+     *
+     * @param context 上下文
+     */
     private AppCrashHandler(Context context) {
-        mContext = context.getApplicationContext();
-        mDefaultHandler = Thread.getDefaultUncaughtExceptionHandler();
-        mAppName = getAppName(context);
+        this.mContext = context.getApplicationContext();
+        this.mDefaultHandler = Thread.getDefaultUncaughtExceptionHandler();
+        this.mAppName = getAppName(context);
+        this.mSpUtils = SPUtils.getInstance();
+        this.mActivityLifecycleManager = ActivityLifecycleManager.getInstance();
     }
 
+    /**
+     * 获取单例实例
+     *
+     * @return AppCrashHandler实例
+     */
     public static AppCrashHandler getInstance() {
         return instance;
     }
 
+    /**
+     * 初始化崩溃处理器
+     *
+     * @param context 上下文
+     * @return 配置器
+     */
     public static synchronized Configurator initCrashHandler(Context context) {
         if (instance == null) {
             instance = new AppCrashHandler(context);
@@ -101,54 +129,133 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         return new Configurator(instance);
     }
 
+    /**
+     * 配置器（链式调用）
+     */
     public static class Configurator {
         private final AppCrashHandler mHandler;
 
         private Configurator(AppCrashHandler handler) {
-            mHandler = handler;
+            this.mHandler = handler;
         }
 
+        /**
+         * 设置最大日志文件数量
+         *
+         * @param max 最大数量（最小为1）
+         * @return 配置器
+         */
         public Configurator setMaxLogFiles(int max) {
             mHandler.mMaxLogFiles = Math.max(1, max);
             return this;
         }
 
+        /**
+         * 设置重启后跳转的Activity
+         *
+         * @param activity 目标Activity
+         * @return 配置器
+         */
         public Configurator setRestartActivity(Class<? extends Activity> activity) {
             mHandler.mRestartActivity = activity;
             return this;
         }
 
+        /**
+         * 设置崩溃展示Activity
+         *
+         * @param activity 自定义崩溃页面
+         * @return 配置器
+         */
         public Configurator setCrashActivity(Class<? extends Activity> activity) {
             mHandler.mCrashActivity = activity;
             return this;
         }
 
+        /**
+         * 设置崩溃页面按钮显示状态
+         *
+         * @param showRestart 是否显示重启按钮
+         * @param showCopy    是否显示复制日志按钮
+         * @return 配置器
+         */
         public Configurator setShowButtons(boolean showRestart, boolean showCopy) {
             mHandler.mShowRestart = showRestart;
             mHandler.mShowCopy = showCopy;
             return this;
         }
 
+        /**
+         * 启用/禁用崩溃处理
+         *
+         * @param enabled 是否启用
+         * @return 配置器
+         */
         public Configurator setEnabled(boolean enabled) {
             mHandler.mEnabled = enabled;
             return this;
         }
 
+        /**
+         * 设置是否显示崩溃详情
+         *
+         * @param show 是否显示
+         * @return 配置器
+         */
         public Configurator setShowCrashInfo(boolean show) {
             mHandler.mShowCrashInfo = show;
             return this;
         }
 
+        /**
+         * 设置是否显示崩溃页面
+         *
+         * @param show 是否显示
+         * @return 配置器
+         */
         public Configurator setShowCrashActivity(boolean show) {
             mHandler.mShowCrashActivity = show;
             return this;
         }
 
+        /**
+         * 设置是否保存崩溃日志到文件
+         *
+         * @param save 是否保存
+         * @return 配置器
+         */
         public Configurator setSaveLogFile(boolean save) {
             mHandler.mSaveLogFile = save;
             return this;
         }
 
+        /**
+         * 设置连续崩溃保护间隔（毫秒）
+         *
+         * @param interval 间隔时间（最小1000ms）
+         * @return 配置器
+         */
+        public Configurator setCrashInterval(long interval) {
+            mHandler.mCrashInterval = Math.max(1000, interval);
+            return this;
+        }
+
+        /**
+         * 设置是否跟踪Activity生命周期（通过ActivityLifecycleManager）
+         *
+         * @param track 是否跟踪
+         * @return 配置器
+         */
+        public Configurator setTrackActivities(boolean track) {
+            mHandler.mTrackActivities = track;
+            return this;
+        }
+
+        /**
+         * 添加崩溃监听器
+         *
+         * @param listener 监听器实例
+         */
         public void addCrashListener(CrashListener listener) {
             if (!mHandler.mListeners.contains(listener)) {
                 mHandler.mListeners.add(listener);
@@ -164,6 +271,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             }
             return;
         }
+
         if (Looper.getMainLooper().getThread() == thread) {
             handleMainThreadCrash(thread, ex);
         } else {
@@ -171,7 +279,18 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         }
     }
 
+    /**
+     * 处理主线程崩溃逻辑
+     *
+     * @param thread 崩溃线程
+     * @param ex     异常信息
+     */
     private void handleMainThreadCrash(Thread thread, Throwable ex) {
+        if (!checkCrashInterval()) {
+            exitProcess();
+            return;
+        }
+
         try {
             final String crashLog = buildCrashReport(ex);
             notifyCrashOccurred(thread, ex, crashLog);
@@ -180,7 +299,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
                 launchCrashActivity(crashLog);
                 new Thread(() -> {
                     saveCrashLog(crashLog);
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> Looper.loop(), 100);
+                    new Handler(Looper.getMainLooper()).postDelayed(Looper::loop, 100);
                 }).start();
                 Looper.loop();
             } else {
@@ -191,21 +310,53 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
                 }).start();
             }
         } catch (Exception e) {
-            Log.e(TAG, "Crash handling failed", e);
+            Log.e(TAG, "Failed to handle crash", e);
             exitProcess();
         }
     }
 
+    /**
+     * 检查连续崩溃间隔（避免无限崩溃循环）
+     *
+     * @return true：正常崩溃，false：连续崩溃需直接退出
+     */
+    private boolean checkCrashInterval() {
+        long lastCrashTime = mSpUtils.getLong(SP_KEY_LAST_CRASH_TIME, 0);
+        long currentTime = System.currentTimeMillis();
+        long interval = currentTime - lastCrashTime;
+
+        if (lastCrashTime == 0 || interval >= mCrashInterval) {
+            mSpUtils.putLong(SP_KEY_LAST_CRASH_TIME, currentTime, false);
+            return true;
+        } else {
+            Log.w(TAG, "Continuous crash detected (interval: " + interval + "ms < " + mCrashInterval + "ms), exit directly");
+            return false;
+        }
+    }
+
+    /**
+     * 通知所有崩溃监听器
+     *
+     * @param thread 崩溃线程
+     * @param ex     异常信息
+     * @param log    崩溃日志
+     */
     private void notifyCrashOccurred(Thread thread, Throwable ex, String log) {
         for (CrashListener listener : mListeners) {
             try {
                 listener.onCrashOccurred(thread, ex, log);
             } catch (Exception e) {
-                Log.w(TAG, "onCrashOccurred listener error", e);
+                Log.w(TAG, "Error in CrashListener.onCrashOccurred", e);
             }
         }
     }
 
+    /**
+     * 构建崩溃报告（包含应用、设备、异常等信息）
+     *
+     * @param ex 异常实例
+     * @return 完整崩溃日志字符串
+     */
     @SuppressLint({"SimpleDateFormat", "ObsoleteSdkInt"})
     private String buildCrashReport(Throwable ex) {
         StringBuilder sb = new StringBuilder(6144);
@@ -213,43 +364,38 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         final String sectionSeparator = "\n――――――――――――――――――――――――――――――\n";
 
         try {
-            // 1. 应用基本信息
+            // 1. 报告头部
             sb.append("〓〓〓〓〓〓〓〓 Crash Report 〓〓〓〓〓〓〓〓\n\n");
+            // 2. 应用信息
             appendApplicationInfo(sb, reportLocale);
-
-            // 2. 设备信息
+            // 3. 设备信息
             sb.append(sectionSeparator).append("DEVICE INFO\n");
             appendDeviceInfo(sb, reportLocale);
-
-            // 3. 运行时状态
+            // 4. 运行时状态（使用ActivityLifecycleManager获取Activity信息）
             sb.append(sectionSeparator).append("RUNTIME STATE\n");
             appendRuntimeState(sb, reportLocale, new Date());
-
-            // 4. 异常信息
+            // 5. 异常信息
             sb.append(sectionSeparator).append("EXCEPTION TRACE\n");
             appendExceptionInfo(sb, ex, reportLocale);
-
-            // 5. 线程堆栈
+            // 6. 线程堆栈
             sb.append(sectionSeparator).append("THREAD STACKS\n");
             appendThreadStacks(sb);
-
-            // 6. 内存信息
+            // 7. 内存信息
             sb.append(sectionSeparator).append("MEMORY STATUS\n");
             appendMemoryInfo(sb, reportLocale);
-
-            // 7. 诊断信息
+            // 8. 诊断信息
             sb.append(sectionSeparator).append("DIAGNOSTIC INFO\n");
             appendDiagnosticInfo(sb, reportLocale);
 
         } catch (Exception e) {
             Log.e(TAG, "Error building crash report", e);
-            sb.append("\n!! REPORT GENERATION ERROR: ").append(e);
+            sb.append("\n!! REPORT GENERATION ERROR: ").append(e.getMessage());
         }
 
         final int MAX_LOG_LENGTH = 65536;
         if (sb.length() > MAX_LOG_LENGTH) {
             sb.setLength(MAX_LOG_LENGTH - 50);
-            sb.append("\n[LOG TRUNCATED]");
+            sb.append("\n[LOG TRUNCATED - EXCEEDED MAX LENGTH]");
         }
 
         return sb.toString();
@@ -258,7 +404,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
     private void appendApplicationInfo(StringBuilder sb, Locale locale) {
         try {
             PackageInfo pInfo = mContext.getPackageManager().getPackageInfo(mContext.getPackageName(), 0);
-            sb.append(String.format(locale, "%-10s: %s (%s)\n", "App", mAppName, getVersionName())).append(String.format(locale, "%-10s: %d\n", "Version", pInfo.versionCode)).append(String.format(locale, "%-10s: %s\n", "Build", getBuildTimestamp(pInfo)));
+            sb.append(String.format(locale, "%-10s: %s (%s)\n", "App", mAppName, getVersionName())).append(String.format(locale, "%-10s: %d\n", "VersionCode", pInfo.versionCode)).append(String.format(locale, "%-10s: %s\n", "BuildTime", getBuildTimestamp(pInfo))).append(String.format(locale, "%-10s: %b\n", "TrackActivities", mTrackActivities));
         } catch (Exception e) {
             appendError(sb, "ApplicationInfo", e);
         }
@@ -275,7 +421,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
     private void appendRuntimeState(StringBuilder sb, Locale locale, Date crashTime) {
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS z", locale);
-            sb.append(String.format(locale, "%-14s: %s\n", "Crash Time", sdf.format(crashTime))).append(String.format(locale, "%-14s: %s\n", "Process", getProcessName())).append(String.format(locale, "%-14s: %d\n", "PID", Process.myPid())).append(String.format(locale, "%-14s: %s\n", "System Uptime", formatUptime())).append(String.format(locale, "%-14s: %s\n", "Foreground", isAppInForeground() ? "Yes" : "No"));
+            sb.append(String.format(locale, "%-14s: %s\n", "CrashTime", sdf.format(crashTime))).append(String.format(locale, "%-14s: %s\n", "Process", getProcessName())).append(String.format(locale, "%-14s: %d\n", "PID", Process.myPid())).append(String.format(locale, "%-14s: %s\n", "Uptime", formatUptime())).append(String.format(locale, "%-14s: %s\n", "Foreground", mActivityLifecycleManager.isForeground() ? "Yes" : "No")).append(String.format(locale, "%-14s: %d\n", "AliveActivities", mTrackActivities ? mActivityLifecycleManager.getActivities().size() : 0));
         } catch (Exception e) {
             appendError(sb, "RuntimeState", e);
         }
@@ -339,7 +485,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 Debug.MemoryInfo memInfo = new Debug.MemoryInfo();
                 Debug.getMemoryInfo(memInfo);
-                sb.append(String.format(locale, "%-10s: %d KB\n", "Native Heap", memInfo.nativePss));
+                sb.append(String.format(locale, "%-10s: %d KB\n", "NativeHeap", memInfo.nativePss));
             }
         } catch (Exception e) {
             appendError(sb, "MemoryInfo", e);
@@ -397,22 +543,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
 
     private String formatUptime() {
         long uptime = SystemClock.elapsedRealtime();
-        return String.format(Locale.US, "%dd %02d:%02d:%02d.%03d", TimeUnit.MILLISECONDS.toDays(uptime), TimeUnit.MILLISECONDS.toHours(uptime) % 24, TimeUnit.MILLISECONDS.toMinutes(uptime) % 60, TimeUnit.MILLISECONDS.toSeconds(uptime) % 60, uptime % 1000); // 毫秒部分
-    }
-
-    private boolean isAppInForeground() {
-        ActivityManager am = (ActivityManager) mContext.getSystemService(Context.ACTIVITY_SERVICE);
-        if (am == null) return false;
-
-        List<ActivityManager.RunningAppProcessInfo> processes = am.getRunningAppProcesses();
-        if (processes == null) return false;
-
-        for (ActivityManager.RunningAppProcessInfo process : processes) {
-            if (process.processName.equals(mContext.getPackageName())) {
-                return process.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND;
-            }
-        }
-        return false;
+        return String.format(Locale.US, "%dd %02d:%02d:%02d.%03d", TimeUnit.MILLISECONDS.toDays(uptime), TimeUnit.MILLISECONDS.toHours(uptime) % 24, TimeUnit.MILLISECONDS.toMinutes(uptime) % 60, TimeUnit.MILLISECONDS.toSeconds(uptime) % 60, uptime % 1000);
     }
 
     private void appendError(StringBuilder sb, String section, Exception e) {
@@ -463,27 +594,10 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             cleanOldLogsViaMediaStore();
         } else {
             if (hasWriteExternalStoragePermission()) {
-                File logDir = getExternalCrashLogDir();
-                File targetDir = logDir;
-
-                if (logDir == null || (!logDir.exists() && !logDir.mkdirs())) {
-                    File parentDir = logDir != null ? logDir.getParentFile() : null;
-                    if (parentDir != null && (parentDir.exists() || parentDir.mkdirs())) {
-                        targetDir = parentDir;
-                    } else {
-                        targetDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                    }
-                }
-
-                File logFile = new File(targetDir, fileName);
-                try (FileWriter writer = new FileWriter(logFile)) {
-                    writer.write(content);
-                    cleanOldLogsInPossibleDirectories();
-                } catch (IOException e) {
-                    Log.e(TAG, "Save log failed", e);
-                }
+                saveCrashLogToExternalStorage(fileName, content);
+                cleanOldLogsInExternalStorage();
             } else {
-                Log.e(TAG, "No WRITE_EXTERNAL_STORAGE permission, cannot save crash log");
+                Log.e(TAG, "WRITE_EXTERNAL_STORAGE permission not granted, cannot save crash log");
             }
         }
     }
@@ -501,6 +615,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
                 Log.e(TAG, "Failed to insert MediaStore record");
                 return;
             }
+
             try (OutputStream os = mContext.getContentResolver().openOutputStream(uri)) {
                 if (os == null) {
                     Log.e(TAG, "Failed to open output stream for MediaStore");
@@ -508,60 +623,75 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
                 }
                 os.write(content.getBytes(StandardCharsets.UTF_8));
                 os.flush();
-                Log.d(TAG, "Crash log saved via MediaStore: " + uri);
+                Log.d(TAG, "Crash log saved to MediaStore: " + uri);
             } catch (IOException e) {
                 Log.e(TAG, "Error writing crash log to MediaStore", e);
             }
         } catch (SecurityException e) {
-            Log.e(TAG, "SecurityException when accessing MediaStore", e);
+            Log.e(TAG, "Security exception when accessing MediaStore", e);
+        }
+    }
+
+    private void saveCrashLogToExternalStorage(String fileName, String content) {
+        File logDir = getExternalCrashLogDir();
+        File targetDir = logDir;
+
+        if (logDir == null || (!logDir.exists() && !logDir.mkdirs())) {
+            File parentDir = logDir != null ? logDir.getParentFile() : null;
+            if (parentDir != null && (parentDir.exists() || parentDir.mkdirs())) {
+                targetDir = parentDir;
+            } else {
+                targetDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            }
+        }
+
+        File logFile = new File(targetDir, fileName);
+        try (FileWriter writer = new FileWriter(logFile)) {
+            writer.write(content);
+            Log.d(TAG, "Crash log saved to external storage: " + logFile.getAbsolutePath());
+        } catch (IOException e) {
+            Log.e(TAG, "Error saving crash log to external storage", e);
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private void cleanOldLogsViaMediaStore() {
-        if (mMaxLogFiles <= 0) {
-            return;
-        }
+        if (mMaxLogFiles <= 0) return;
 
         String relativePath = Environment.DIRECTORY_DOWNLOADS + "/" + mAppName + "/" + CRASH_LOG_SUBDIR;
         Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
 
-        String[] projection = new String[]{MediaStore.Downloads._ID, MediaStore.Downloads.DATE_ADDED};
+        String[] projection = {MediaStore.Downloads._ID, MediaStore.Downloads.DATE_ADDED};
         String selection = MediaStore.Downloads.RELATIVE_PATH + "=?";
-        String[] selectionArgs = new String[]{relativePath};
-        String sortOrder = MediaStore.Downloads.DATE_ADDED + " ASC";
+        String[] selectionArgs = {relativePath};
+        String sortOrder = MediaStore.Downloads.DATE_ADDED + " ASC"; // 按创建时间升序（旧日志在前）
 
         try (Cursor cursor = mContext.getContentResolver().query(collection, projection, selection, selectionArgs, sortOrder)) {
-
-            if (cursor == null) {
-                return;
-            }
+            if (cursor == null) return;
 
             int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID);
             List<Uri> uris = new ArrayList<>();
+
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(idColumn);
-                Uri uri = ContentUris.withAppendedId(collection, id);
-                uris.add(uri);
+                uris.add(ContentUris.withAppendedId(collection, id));
             }
 
             int total = uris.size();
             if (total > mMaxLogFiles) {
                 int deleteCount = total - mMaxLogFiles;
                 for (int i = 0; i < deleteCount; i++) {
-                    Uri uri = uris.get(i);
-                    mContext.getContentResolver().delete(uri, null, null);
+                    mContext.getContentResolver().delete(uris.get(i), null, null);
                 }
+                Log.d(TAG, "Deleted " + deleteCount + " old crash logs via MediaStore");
             }
         } catch (Exception e) {
             Log.e(TAG, "Failed to clean old logs via MediaStore", e);
         }
     }
 
-    private void cleanOldLogsInPossibleDirectories() {
-        if (mMaxLogFiles <= 0) {
-            return;
-        }
+    private void cleanOldLogsInExternalStorage() {
+        if (mMaxLogFiles <= 0) return;
 
         List<File> possibleDirs = new ArrayList<>();
         File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
@@ -572,7 +702,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         possibleDirs.add(appDir);
         possibleDirs.add(crashLogsDir);
 
-        String prefix = mAppName.replace(" ", "_") + "_CrashLog_";
+        String logPrefix = mAppName.replace(" ", "_") + "_CrashLog_";
         List<File> allLogFiles = new ArrayList<>();
 
         for (File dir : possibleDirs) {
@@ -580,7 +710,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
                 File[] files = dir.listFiles();
                 if (files != null) {
                     for (File file : files) {
-                        if (file.isFile() && file.getName().startsWith(prefix)) {
+                        if (file.isFile() && file.getName().startsWith(logPrefix)) {
                             allLogFiles.add(file);
                         }
                     }
@@ -600,25 +730,13 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             int deleteCount = totalFiles - mMaxLogFiles;
             for (int i = 0; i < deleteCount; i++) {
                 File file = allLogFiles.get(i);
-                if (file.exists() && !file.delete()) {
-                    Log.w(TAG, "Failed to delete: " + file.getAbsolutePath());
+                if (file.exists() && file.delete()) {
+                    Log.d(TAG, "Deleted old log: " + file.getAbsolutePath());
+                } else {
+                    Log.w(TAG, "Failed to delete old log: " + file.getAbsolutePath());
                 }
             }
-            Log.d(TAG, "Deleted " + deleteCount + " old crash logs");
-        }
-    }
-
-    private File getExternalCrashLogDir() {
-        File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File appDir = new File(downloadsDir, mAppName);
-        return new File(appDir, CRASH_LOG_SUBDIR);
-    }
-
-    private boolean hasWriteExternalStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
-        } else {
-            return true;
+            Log.d(TAG, "Deleted " + deleteCount + " old crash logs from external storage");
         }
     }
 
@@ -639,8 +757,44 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         try {
             mContext.startActivity(intent);
         } catch (Exception e) {
-            Log.e(TAG, "Start crash activity failed", e);
+            Log.e(TAG, "Failed to start crash display activity", e);
             exitProcess();
+        }
+    }
+
+    public void exitProcess() {
+        try {
+            for (CrashListener listener : mListeners) {
+                try {
+                    listener.beforeExit();
+                } catch (Exception e) {
+                    Log.w(TAG, "Error in CrashListener.beforeExit", e);
+                }
+            }
+
+            if (mTrackActivities) {
+                mActivityLifecycleManager.finishAllActivities();
+                SystemClock.sleep(100);
+            }
+
+            Process.killProcess(Process.myPid());
+            System.exit(1);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to exit process", e);
+        }
+    }
+
+    private File getExternalCrashLogDir() {
+        File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        File appDir = new File(downloadsDir, mAppName);
+        return new File(appDir, CRASH_LOG_SUBDIR);
+    }
+
+    private boolean hasWriteExternalStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return true;
         }
     }
 
@@ -657,15 +811,6 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             return context.getString(context.getApplicationInfo().labelRes);
         } catch (Exception e) {
             return "App";
-        }
-    }
-
-    public void exitProcess() {
-        try {
-            Process.killProcess(Process.myPid());
-            System.exit(1);
-        } catch (Exception e) {
-            Log.e(TAG, "Exit process failed", e);
         }
     }
 
@@ -689,12 +834,21 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         return new ArrayList<>(mListeners);
     }
 
+    /**
+     * 获取应用启动Activity
+     *
+     * @return 启动Activity的Class
+     */
     private Class<? extends Activity> getLaunchActivity() {
         try {
-            String className = mContext.getPackageManager().getLaunchIntentForPackage(mContext.getPackageName()).getComponent().getClassName();
-            return (Class<? extends Activity>) Class.forName(className);
+            Intent launchIntent = mContext.getPackageManager().getLaunchIntentForPackage(mContext.getPackageName());
+            if (launchIntent != null && launchIntent.getComponent() != null) {
+                String className = launchIntent.getComponent().getClassName();
+                return (Class<? extends Activity>) Class.forName(className);
+            }
         } catch (Exception e) {
-            return null;
+            Log.w(TAG, "Failed to get launch activity", e);
         }
+        return null;
     }
 }

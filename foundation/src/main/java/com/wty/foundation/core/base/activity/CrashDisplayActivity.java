@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -20,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.wty.foundation.R;
 import com.wty.foundation.core.exception.AppCrashHandler;
+import com.wty.foundation.core.safe.OnSafeClickListener;
 
 public class CrashDisplayActivity extends AppCompatActivity {
     private static final String TAG = "CrashDisplayActivity";
@@ -99,23 +101,34 @@ public class CrashDisplayActivity extends AppCompatActivity {
         if (mCrashHandler.isShowRestart()) {
             Button restartBtn = dialog.getButton(Dialog.BUTTON_POSITIVE);
             if (restartBtn != null) {
-                restartBtn.setOnClickListener(v -> {
-                    handleRestart();
-                    dialog.dismiss();
+                restartBtn.setOnClickListener(new OnSafeClickListener() {
+                    @Override
+                    protected void onSafeClick(View v) {
+                        handleRestart();
+                        dialog.dismiss();
+                    }
                 });
             }
         }
         if (mCrashHandler.isShowCopy()) {
             Button copyBtn = dialog.getButton(Dialog.BUTTON_NEUTRAL);
             if (copyBtn != null) {
-                copyBtn.setOnClickListener(v -> copyToClipboard());
+                copyBtn.setOnClickListener(new OnSafeClickListener() {
+                    @Override
+                    protected void onSafeClick(View v) {
+                        copyToClipboard();
+                    }
+                });
             }
         }
         Button exitBtn = dialog.getButton(Dialog.BUTTON_NEGATIVE);
         if (exitBtn != null) {
-            exitBtn.setOnClickListener(v -> {
-                handleExit();
-                dialog.dismiss();
+            exitBtn.setOnClickListener(new OnSafeClickListener() {
+                @Override
+                protected void onSafeClick(View v) {
+                    handleExit();
+                    dialog.dismiss();
+                }
             });
         }
     }
