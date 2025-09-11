@@ -10,9 +10,7 @@ import android.util.Log;
 /**
  * Author: 吴天宇
  * Date: 2025/8/4 10:01
- * Description: 震动工具类
- * 注意：需在AndroidManifest.xml中添加权限
- * <uses-permission android:name="android.permission.VIBRATE"/>
+ * Description: 震动工具类（注意：需在清单文件中添加权限）
  */
 public class VibrationUtils {
     private static final String TAG = "VibrationUtils";
@@ -55,7 +53,7 @@ public class VibrationUtils {
         }
         // 模式：等待0ms -> 震动100ms -> 等待200ms -> 震动100ms
         long[] pattern = {0, 100, 200, 100};
-        vibratePattern(context, pattern, -1); // -1表示不重复
+        vibratePattern(context, pattern, -1);
     }
 
     /**
@@ -65,12 +63,10 @@ public class VibrationUtils {
      * @param milliseconds 震动时长(毫秒，需≥0)
      */
     public static void vibrate(Context context, long milliseconds) {
-        // 验证上下文非空，为空直接返回
         if (context == null) {
             Log.e(TAG, "vibrate: Context cannot be null");
             return;
         }
-        // 验证时长合法，不合法直接返回
         if (milliseconds < 0) {
             Log.e(TAG, "vibrate: Vibration duration cannot be negative");
             return;
@@ -83,11 +79,9 @@ public class VibrationUtils {
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Android 8.0+ 使用VibrationEffect
                 VibrationEffect effect = VibrationEffect.createOneShot(milliseconds, VibrationEffect.DEFAULT_AMPLITUDE);
                 vibrator.vibrate(effect);
             } else {
-                // 旧版API直接调用vibrate
                 vibrator.vibrate(milliseconds);
             }
         } catch (Exception e) {
@@ -96,14 +90,13 @@ public class VibrationUtils {
     }
 
     /**
-     * 波形震动（复杂模式）
+     * 波形震动
      *
      * @param context 上下文（不可为null）
      * @param pattern 震动模式数组（[等待,震动,等待,震动...]，不可为null且长度≥1）
      * @param repeat  重复次数（-1=不重复，0=从开头无限循环，正数=重复次数）
      */
     public static void vibratePattern(Context context, long[] pattern, int repeat) {
-        // 验证参数合法性，为空直接返回
         if (context == null) {
             Log.e(TAG, "vibratePattern: Context cannot be null");
             return;
@@ -112,10 +105,10 @@ public class VibrationUtils {
             Log.e(TAG, "vibratePattern: Pattern cannot be null or empty");
             return;
         }
-        // 修正重复参数范围（避免无效值）
+
         int safeRepeat = Math.max(repeat, -1);
         if (safeRepeat >= pattern.length) {
-            safeRepeat = -1; // 超出范围则不重复
+            safeRepeat = -1;
         }
 
         Vibrator vibrator = getVibrator(context);
@@ -167,14 +160,14 @@ public class VibrationUtils {
     public static boolean hasVibrator(Context context) {
         if (context == null) {
             Log.e(TAG, "hasVibrator: Context cannot be null");
-            return false; // 上下文为空时返回不支持
+            return false;
         }
         Vibrator vibrator = getVibrator(context);
         return vibrator != null && vibrator.hasVibrator();
     }
 
     /**
-     * 获取系统震动服务（兼容Android 12+的VibratorManager）
+     * 获取系统震动服务
      *
      * @param context 上下文
      * @return 震动器实例（可能为null）

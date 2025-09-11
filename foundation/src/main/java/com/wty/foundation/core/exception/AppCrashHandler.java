@@ -1,19 +1,15 @@
 package com.wty.foundation.core.exception;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Application;
-import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
@@ -46,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -76,6 +71,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
     private boolean mSaveLogFile = false;
     private long mCrashInterval = 5000;
     private boolean mTrackActivities = true;
+    private File mCustomLogSavePath;
     private Class<? extends Activity> mRestartActivity;
     private Class<? extends Activity> mCrashActivity = CrashDisplayActivity.class;
     private final List<CrashListener> mListeners = new ArrayList<>();
@@ -241,13 +237,24 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
         }
 
         /**
-         * 设置是否跟踪Activity生命周期（通过ActivityLifecycleManager）
+         * 设置是否跟踪Activity生命周期
          *
          * @param track 是否跟踪
          * @return 配置器
          */
         public Configurator setTrackActivities(boolean track) {
             mHandler.mTrackActivities = track;
+            return this;
+        }
+
+        /**
+         * 设置自定义日志保存目录
+         *
+         * @param path 期望保存的目录（如 Download）
+         * @return 配置器
+         */
+        public Configurator setLogSavePath(File path) {
+            mHandler.mCustomLogSavePath = path;
             return this;
         }
 
@@ -589,15 +596,88 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
 
         String fileName = mAppName.replace(" ", "_") + "_CrashLog_" + new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(new Date()) + ".log";
 
+        if (mCustomLogSavePath != null) {
+            saveCrashLogToCustomPath(fileName, content);
+            cleanOldLogsInCustomPath();
+            return;
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            saveCrashLogUsingMediaStore(fileName, content);
-            cleanOldLogsViaMediaStore();
+            saveCrashLogToPrivateDir(fileName, content);
+            cleanOldLogsInPrivateDir();
         } else {
-            if (hasWriteExternalStoragePermission()) {
-                saveCrashLogToExternalStorage(fileName, content);
-                cleanOldLogsInExternalStorage();
-            } else {
-                Log.e(TAG, "WRITE_EXTERNAL_STORAGE permission not granted, cannot save crash log");
+            saveCrashLogToPrivateDir(fileName, content);
+            cleanOldLogsInPrivateDir();
+        }
+    }
+
+    private void saveCrashLogToPrivateDir(String fileName, String content) {
+        File dir = new File(mContext.getFilesDir(), CRASH_LOG_SUBDIR);
+        if (!dir.exists()) dir.mkdirs();
+        File logFile = new File(dir, fileName);
+        try (FileWriter w = new FileWriter(logFile)) {
+            w.write(content);
+            Log.d(TAG, "Crash log saved to private dir: " + logFile.getAbsolutePath());
+        } catch (IOException e) {
+            Log.e(TAG, "Error writing crash log to private dir", e);
+        }
+    }
+
+    private void cleanOldLogsInPrivateDir() {
+        if (mMaxLogFiles <= 0) return;
+        File dir = new File(mContext.getFilesDir(), CRASH_LOG_SUBDIR);
+        if (!dir.exists()) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        List<File> list = new ArrayList<>();
+        for (File f : files) {
+            if (f.isFile() && f.getName().startsWith(mAppName.replace(" ", "_") + "_CrashLog_")) {
+                list.add(f);
+            }
+        }
+        Collections.sort(list, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+        int deleteCount = list.size() - mMaxLogFiles;
+        for (int i = 0; i < deleteCount; i++) {
+            if (list.get(i).delete()) {
+                Log.d(TAG, "Deleted old private log: " + list.get(i).getAbsolutePath());
+            }
+        }
+    }
+
+    private void saveCrashLogToCustomPath(String fileName, String content) {
+        File dir = mCustomLogSavePath;
+        if (!dir.exists()) dir.mkdirs();
+        File logFile = new File(dir, fileName);
+        boolean isPublic = Environment.isExternalStorageEmulated() && (dir.getAbsolutePath().startsWith(Environment.getExternalStorageDirectory().getAbsolutePath()));
+        if (isPublic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            saveCrashLogUsingMediaStore(fileName, content);
+        } else {
+            try (FileWriter w = new FileWriter(logFile)) {
+                w.write(content);
+                Log.d(TAG, "Crash log saved to custom path: " + logFile.getAbsolutePath());
+            } catch (IOException e) {
+                Log.e(TAG, "Error writing crash log to custom path", e);
+            }
+        }
+    }
+
+    private void cleanOldLogsInCustomPath() {
+        if (mMaxLogFiles <= 0 || mCustomLogSavePath == null) return;
+        File dir = mCustomLogSavePath;
+        if (!dir.exists()) return;
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        List<File> list = new ArrayList<>();
+        for (File f : files) {
+            if (f.isFile() && f.getName().startsWith(mAppName.replace(" ", "_") + "_CrashLog_")) {
+                list.add(f);
+            }
+        }
+        Collections.sort(list, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+        int deleteCount = list.size() - mMaxLogFiles;
+        for (int i = 0; i < deleteCount; i++) {
+            if (list.get(i).delete()) {
+                Log.d(TAG, "Deleted old custom log: " + list.get(i).getAbsolutePath());
             }
         }
     }
@@ -629,114 +709,6 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             }
         } catch (SecurityException e) {
             Log.e(TAG, "Security exception when accessing MediaStore", e);
-        }
-    }
-
-    private void saveCrashLogToExternalStorage(String fileName, String content) {
-        File logDir = getExternalCrashLogDir();
-        File targetDir = logDir;
-
-        if (logDir == null || (!logDir.exists() && !logDir.mkdirs())) {
-            File parentDir = logDir != null ? logDir.getParentFile() : null;
-            if (parentDir != null && (parentDir.exists() || parentDir.mkdirs())) {
-                targetDir = parentDir;
-            } else {
-                targetDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            }
-        }
-
-        File logFile = new File(targetDir, fileName);
-        try (FileWriter writer = new FileWriter(logFile)) {
-            writer.write(content);
-            Log.d(TAG, "Crash log saved to external storage: " + logFile.getAbsolutePath());
-        } catch (IOException e) {
-            Log.e(TAG, "Error saving crash log to external storage", e);
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private void cleanOldLogsViaMediaStore() {
-        if (mMaxLogFiles <= 0) return;
-
-        String relativePath = Environment.DIRECTORY_DOWNLOADS + "/" + mAppName + "/" + CRASH_LOG_SUBDIR;
-        Uri collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
-
-        String[] projection = {MediaStore.Downloads._ID, MediaStore.Downloads.DATE_ADDED};
-        String selection = MediaStore.Downloads.RELATIVE_PATH + "=?";
-        String[] selectionArgs = {relativePath};
-        String sortOrder = MediaStore.Downloads.DATE_ADDED + " ASC"; // 按创建时间升序（旧日志在前）
-
-        try (Cursor cursor = mContext.getContentResolver().query(collection, projection, selection, selectionArgs, sortOrder)) {
-            if (cursor == null) return;
-
-            int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID);
-            List<Uri> uris = new ArrayList<>();
-
-            while (cursor.moveToNext()) {
-                long id = cursor.getLong(idColumn);
-                uris.add(ContentUris.withAppendedId(collection, id));
-            }
-
-            int total = uris.size();
-            if (total > mMaxLogFiles) {
-                int deleteCount = total - mMaxLogFiles;
-                for (int i = 0; i < deleteCount; i++) {
-                    mContext.getContentResolver().delete(uris.get(i), null, null);
-                }
-                Log.d(TAG, "Deleted " + deleteCount + " old crash logs via MediaStore");
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to clean old logs via MediaStore", e);
-        }
-    }
-
-    private void cleanOldLogsInExternalStorage() {
-        if (mMaxLogFiles <= 0) return;
-
-        List<File> possibleDirs = new ArrayList<>();
-        File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File appDir = new File(downloadsDir, mAppName);
-        File crashLogsDir = new File(appDir, CRASH_LOG_SUBDIR);
-
-        possibleDirs.add(downloadsDir);
-        possibleDirs.add(appDir);
-        possibleDirs.add(crashLogsDir);
-
-        String logPrefix = mAppName.replace(" ", "_") + "_CrashLog_";
-        List<File> allLogFiles = new ArrayList<>();
-
-        for (File dir : possibleDirs) {
-            if (dir != null && dir.exists() && dir.isDirectory()) {
-                File[] files = dir.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        if (file.isFile() && file.getName().startsWith(logPrefix)) {
-                            allLogFiles.add(file);
-                        }
-                    }
-                }
-            }
-        }
-
-        Collections.sort(allLogFiles, new Comparator<File>() {
-            @Override
-            public int compare(File f1, File f2) {
-                return Long.compare(f1.lastModified(), f2.lastModified());
-            }
-        });
-
-        int totalFiles = allLogFiles.size();
-        if (totalFiles > mMaxLogFiles) {
-            int deleteCount = totalFiles - mMaxLogFiles;
-            for (int i = 0; i < deleteCount; i++) {
-                File file = allLogFiles.get(i);
-                if (file.exists() && file.delete()) {
-                    Log.d(TAG, "Deleted old log: " + file.getAbsolutePath());
-                } else {
-                    Log.w(TAG, "Failed to delete old log: " + file.getAbsolutePath());
-                }
-            }
-            Log.d(TAG, "Deleted " + deleteCount + " old crash logs from external storage");
         }
     }
 
@@ -781,20 +753,6 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             System.exit(1);
         } catch (Exception e) {
             Log.e(TAG, "Failed to exit process", e);
-        }
-    }
-
-    private File getExternalCrashLogDir() {
-        File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File appDir = new File(downloadsDir, mAppName);
-        return new File(appDir, CRASH_LOG_SUBDIR);
-    }
-
-    private boolean hasWriteExternalStoragePermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            return mContext.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
-        } else {
-            return true;
         }
     }
 

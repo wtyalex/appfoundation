@@ -1,5 +1,6 @@
 package com.wty.foundation.common.utils;
 
+import android.os.Build;
 import android.util.Log;
 
 import java.math.BigDecimal;
@@ -7,6 +8,11 @@ import java.math.BigInteger;
 import java.util.UUID;
 import java.util.function.Function;
 
+/**
+ * Author: 吴天宇
+ * Date: 2024/8/21 14:56
+ * Description: 数学工具类，提供浮点数比较及字符串转各类数值（int/long/BigDecimal等）的功能
+ */
 public class MathUtils {
     private static final String TAG = "MathUtils";
     private static final double ACCURACY = 1E-7;
@@ -47,11 +53,13 @@ public class MathUtils {
      */
     private static <T> T convertString(String str, T defValue, Function<String, T> converter) {
         try {
-            return converter.apply(str);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                return converter.apply(str);
+            }
         } catch (Exception e) {
             Log.e(TAG, "转换错误: " + e.getMessage(), e);
-            return defValue;
         }
+        return defValue;
     }
 
     /**

@@ -5,7 +5,11 @@ import android.util.Log;
 
 import com.wty.foundation.common.init.AppContext;
 
-
+/**
+ * Author: 吴天宇
+ * Date: 2024/8/27 16:56
+ * Description: 屏幕尺寸转换工具类
+ */
 public class DisplayUtils {
     private static final String TAG = "DisplayUtils";
 

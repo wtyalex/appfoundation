@@ -22,8 +22,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
- * 用于管理WebView的初始化、生命周期、JavaScript交互等。
- * 支持自定义WebViewClient、WebChromeClient、文件下载、Cookie管理等功能。
+ * Author: 吴天宇
+ * Date: 2025/2/20 14:31
+ * Description: WebView工具类
  */
 public class WebViewUtils {
     private static final String TAG = "WebViewUtils";
@@ -444,7 +445,9 @@ public class WebViewUtils {
         }
     }
 
-    // 内部WebViewClient，处理默认逻辑
+    /**
+     * 内部WebViewClient，处理默认逻辑
+     */
     private class InternalWebViewClient extends WebViewClient {
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
@@ -491,7 +494,9 @@ public class WebViewUtils {
         }
     }
 
-    // 内部WebChromeClient，处理默认逻辑
+    /**
+     * 内部WebChromeClient，处理默认逻辑
+     */
     private class InternalWebChromeClient extends WebChromeClient {
         @Override
         public void onProgressChanged(WebView view, int newProgress) {
@@ -502,7 +507,9 @@ public class WebViewUtils {
         }
     }
 
-    // 内部DownloadListener，处理文件下载
+    /**
+     * 内部DownloadListener，处理文件下载
+     */
     private class InternalDownloadListener implements DownloadListener {
         @Override
         public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {

@@ -14,7 +14,11 @@ import androidx.annotation.NonNull;
 
 import com.wty.foundation.common.init.AppContext;
 
-
+/**
+ * Author: 吴天宇
+ * Date: 2025/1/10 9:45
+ * Description: 导航栏工具类，提供导航栏高度获取、显隐控制、样式设置及状态判断等功能
+ */
 public class NavigationBarUtils {
 
     // 私有构造函数防止外部实例化

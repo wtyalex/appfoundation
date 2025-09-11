@@ -15,6 +15,11 @@ import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 
+/**
+ * Author: 吴天宇
+ * Date: 2024/8/27 15:31
+ * Description: 软键盘管理工具类
+ */
 public class SoftKeyboardUtils {
 
     private static final String TAG = "SoftKeyboardUtils";

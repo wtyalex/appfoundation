@@ -1,7 +1,6 @@
 package com.wty.foundation.core.base.activity;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.MotionEvent;
@@ -27,6 +26,7 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setStatusBarStyle();
+        ResourceSetting.applyAdaptiveDensity(this, true);
         mInputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         Fragment loadDialog = getSupportFragmentManager().findFragmentByTag(LOADING_DIALOG);
         if (loadDialog instanceof DialogFragment) {
@@ -131,9 +131,7 @@ public abstract class BaseActivity extends AppCompatActivity implements View.OnC
     }
 
     @Override
-    public Resources getResources() {
-        Resources res = super.getResources();
-        ResourceSetting.resourceSetting(res);
-        return res;
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(ResourceSetting.wrapContextFontScale(newBase));
     }
 }

@@ -27,6 +27,11 @@ import com.wty.foundation.common.init.AppContext;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Author: 吴天宇
+ * Date: 2025/2/11 10:31
+ * Description: 通知工具类，提供普通、大文本、大图片通知的显示及通知取消等功能
+ */
 public class NotificationUtils {
     private static final String TAG = "NotificationUtils";
     // 默认通知渠道 ID

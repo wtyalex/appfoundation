@@ -1,18 +1,22 @@
 package com.wty.foundation.common.utils;
 
 import android.Manifest;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
 import android.graphics.RectF;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
-import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
+import android.util.Base64;
 import android.util.Log;
 
 import androidx.annotation.ColorInt;
@@ -26,43 +30,58 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import com.journeyapps.barcodescanner.BarcodeEncoder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.util.Collections;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
+/**
+ * Author: 吴天宇
+ * Date: 2025/2/20 16:31
+ * Description: 二维码/条形码生成工具类
+ */
 public class ZxingUtils {
     private static final String TAG = "ZxingUtils";
-    // 默认字符集
-    private static final String DEFAULT_CHARSET = "UTF-8";
-    // 默认边距
-    private static final int DEFAULT_MARGIN = 1;
-    // 默认纠错级别
-    private static final ErrorCorrectionLevel DEFAULT_ERROR_CORRECTION = ErrorCorrectionLevel.H;
-    // 主线程处理器
-    private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
-    // 最大尺寸
+    /**
+     * 生成图片最大尺寸
+     */
     private static final int MAX_SIZE = 4096;
-    // 默认配置
-    private static final Config DEFAULT_CONFIG = new Config();
+    /**
+     * 默认字符编码
+     */
+    private static final String DEFAULT_CHARSET = "UTF-8";
+    /**
+     * 默认边距
+     */
+    private static final int DEFAULT_MARGIN = 1;
+    /**
+     * 默认容错级别
+     */
+    private static final ErrorCorrectionLevel DEFAULT_ERROR_CORRECTION = ErrorCorrectionLevel.H;
+    /**
+     * 线程池用于异步任务
+     */
+    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool();
 
     /**
-     * 生成结果的回调接口
+     * 生成结果回调接口
      */
     public interface Callback {
         /**
-         * 生成成功时调用
+         * 生成成功回调
          *
-         * @param bitmap 生成的位图，可能为空
+         * @param bitmap 生成的位图，可能为null
          */
         void onSuccess(@Nullable Bitmap bitmap);
 
         /**
-         * 生成失败时调用
+         * 生成失败回调
          *
          * @param errorMsg 错误信息
          */
@@ -70,40 +89,100 @@ public class ZxingUtils {
     }
 
     /**
-     * 二维码生成配置类
+     * 生成配置类
+     * 用于自定义条码样式、Logo、水印等参数
      */
     public static class Config {
-        // 前景色
+        /**
+         * 前景色（条码颜色）
+         */
         @ColorInt
-        int fgColor = Color.BLACK;
-        // 背景色
+        public int fgColor = Color.BLACK;
+        /**
+         * 背景色
+         */
         @ColorInt
-        int bgColor = Color.WHITE;
-        // 边距
-        int margin = DEFAULT_MARGIN;
-        // 纠错级别
-        ErrorCorrectionLevel errorCorrection = DEFAULT_ERROR_CORRECTION;
-        // 二维码中心的 logo，可能为空
+        public int bgColor = Color.WHITE;
+        /**
+         * 边距
+         */
+        public int margin = DEFAULT_MARGIN;
+        /**
+         * 容错级别（主要用于QR_CODE）
+         */
+        public ErrorCorrectionLevel errorCorrection = DEFAULT_ERROR_CORRECTION;
+        /**
+         * Logo位图
+         */
         @Nullable
-        Bitmap logo;
-        // logo 尺寸比例
-        float logoSizeRatio = 0.2f;
-        // 是否显示 logo 边框
-        boolean logoBorder = true;
-        // logo 边框颜色
+        public Bitmap logo;
+        /**
+         * Logo大小相对于二维码的比例
+         */
+        public float logoSizeRatio = 0.2f;
+        /**
+         * 是否显示Logo边框
+         */
+        public boolean logoBorder = true;
+        /**
+         * Logo边框颜色
+         */
         @ColorInt
-        int logoBorderColor = Color.WHITE;
-        // 条码格式
-        BarcodeFormat barcodeFormat = BarcodeFormat.QR_CODE;
+        public int logoBorderColor = Color.WHITE;
+        /**
+         * Logo是否圆形显示
+         */
+        public boolean logoRound = true;
+        /**
+         * 是否启用前景色渐变
+         */
+        public boolean fgGradient = false;
+        /**
+         * 渐变起始颜色
+         */
+        @ColorInt
+        public int gradientStartColor = Color.BLACK;
+        /**
+         * 渐变结束颜色
+         */
+        @ColorInt
+        public int gradientEndColor = Color.BLACK;
+        /**
+         * 条码格式（QR_CODE、CODE_128等）
+         */
+        public BarcodeFormat barcodeFormat = BarcodeFormat.QR_CODE;
+
+        /**
+         * 水印文字
+         */
+        @Nullable
+        public String watermarkText;
+        /**
+         * 水印颜色
+         */
+        @ColorInt
+        public int watermarkColor = Color.BLACK;
+        /**
+         * 水印字体大小（像素）
+         */
+        public float watermarkSize = 20f;
+        /**
+         * 水印X位置（百分比）
+         */
+        public float watermarkX = 0.5f;
+        /**
+         * 水印Y位置（百分比）
+         */
+        public float watermarkY = 0.95f;
 
         /**
          * 设置前景色
          *
          * @param color 颜色值
-         * @return 配置对象本身
+         * @return 当前Config实例
          */
         public Config setFgColor(@ColorInt int color) {
-            this.fgColor = color;
+            fgColor = color;
             return this;
         }
 
@@ -111,231 +190,139 @@ public class ZxingUtils {
          * 设置背景色
          *
          * @param color 颜色值
-         * @return 配置对象本身
+         * @return 当前Config实例
          */
         public Config setBgColor(@ColorInt int color) {
-            this.bgColor = color;
+            bgColor = color;
             return this;
         }
 
         /**
          * 设置边距
          *
-         * @param margin 边距值，最小为 0
-         * @return 配置对象本身
+         * @param m 边距值（≥0）
+         * @return 当前Config实例
          */
-        public Config setMargin(int margin) {
-            this.margin = Math.max(0, margin);
+        public Config setMargin(int m) {
+            margin = Math.max(0, m);
             return this;
         }
 
         /**
-         * 设置纠错级别
+         * 设置容错级别
          *
-         * @param level 纠错级别
-         * @return 配置对象本身
+         * @param level 容错级别
+         * @return 当前Config实例
          */
         public Config setErrorCorrection(ErrorCorrectionLevel level) {
-            this.errorCorrection = level;
+            errorCorrection = level;
             return this;
         }
 
         /**
-         * 设置 logo
+         * 设置Logo
          *
-         * @param logo 位图 logo，可能为空
-         * @return 配置对象本身
+         * @param b Logo位图
+         * @return 当前Config实例
          */
-        public Config setLogo(@Nullable Bitmap logo) {
-            this.logo = logo;
+        public Config setLogo(@Nullable Bitmap b) {
+            logo = b;
             return this;
         }
 
         /**
-         * 设置 logo 尺寸比例
+         * 设置Logo大小比例
          *
-         * @param ratio 比例值，范围在 0.1f 到 0.3f 之间
-         * @return 配置对象本身
+         * @param r 比例值（0.1-0.3）
+         * @return 当前Config实例
          */
-        public Config setLogoSizeRatio(float ratio) {
-            this.logoSizeRatio = clamp(ratio, 0.1f, 0.3f);
+        public Config setLogoSizeRatio(float r) {
+            logoSizeRatio = clamp(r, 0.1f, 0.3f);
             return this;
         }
 
         /**
-         * 设置是否显示 logo 边框
+         * 设置是否显示Logo边框
          *
-         * @param showBorder 是否显示边框
-         * @return 配置对象本身
+         * @param show 是否显示
+         * @return 当前Config实例
          */
-        public Config setLogoBorder(boolean showBorder) {
-            this.logoBorder = showBorder;
+        public Config setLogoBorder(boolean show) {
+            logoBorder = show;
             return this;
         }
 
         /**
-         * 设置 logo 边框颜色
+         * 设置Logo边框颜色
          *
-         * @param color 颜色值
-         * @return 配置对象本身
+         * @param c 颜色值
+         * @return 当前Config实例
          */
-        public Config setLogoBorderColor(@ColorInt int color) {
-            this.logoBorderColor = color;
+        public Config setLogoBorderColor(@ColorInt int c) {
+            logoBorderColor = c;
+            return this;
+        }
+
+        /**
+         * 设置Logo是否圆形显示
+         *
+         * @param round 是否圆形
+         * @return 当前Config实例
+         */
+        public Config setLogoRound(boolean round) {
+            logoRound = round;
+            return this;
+        }
+
+        /**
+         * 设置前景色渐变
+         *
+         * @param start 起始颜色
+         * @param end   结束颜色
+         * @return 当前Config实例
+         */
+        public Config setFgGradient(int start, int end) {
+            fgGradient = true;
+            gradientStartColor = start;
+            gradientEndColor = end;
             return this;
         }
 
         /**
          * 设置条码格式
          *
-         * @param format 条码格式
-         * @return 配置对象本身
+         * @param f 条码格式
+         * @return 当前Config实例
          */
-        public Config setBarcodeFormat(BarcodeFormat format) {
-            this.barcodeFormat = format;
+        public Config setBarcodeFormat(BarcodeFormat f) {
+            barcodeFormat = f;
+            return this;
+        }
+
+        /**
+         * 设置水印
+         *
+         * @param text   水印文字
+         * @param color  水印颜色
+         * @param size   水印字体大小
+         * @param xRatio X位置比例
+         * @param yRatio Y位置比例
+         * @return 当前Config实例
+         */
+        public Config setWatermark(String text, int color, float size, float xRatio, float yRatio) {
+            watermarkText = text;
+            watermarkColor = color;
+            watermarkSize = size;
+            watermarkX = xRatio;
+            watermarkY = yRatio;
             return this;
         }
     }
 
     /**
-     * 异步生成条码
+     * 限制数值在指定范围内
      *
-     * @param content  条码内容
-     * @param size     条码尺寸
-     * @param config   生成配置，可能为空
-     * @param callback 生成结果回调
-     */
-    public static void generateAsync(@NonNull String content, int size, @Nullable Config config, @NonNull Callback callback) {
-        SafeAsyncTask task = new SafeAsyncTask(content, size, config, callback);
-        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-    }
-
-    /**
-     * 同步生成条码
-     *
-     * @param content 条码内容，可能为空
-     * @param size    条码尺寸
-     * @param config  生成配置，可能为空
-     * @return 生成的位图，可能为空
-     */
-    @Nullable
-    public static Bitmap generateSync(@Nullable String content, int size, @Nullable Config config) {
-        if (!validateContent(content) || !validateSize(size)) return null;
-
-        try {
-            Config finalConfig = mergeConfig(config);
-            Map<EncodeHintType, Object> hints = prepareHints(finalConfig);
-
-            BitMatrix matrix = new MultiFormatWriter().encode(content, finalConfig.barcodeFormat, size, size, hints);
-
-            Bitmap baseBitmap = renderToBitmap(matrix, finalConfig);
-            if (baseBitmap == null) return null;
-
-            return finalConfig.barcodeFormat == BarcodeFormat.QR_CODE ? addLogo(baseBitmap, finalConfig) : baseBitmap;
-        } catch (WriterException | IllegalArgumentException e) {
-            Log.e(TAG, "Generation failed: " + e.getMessage());
-        } catch (OutOfMemoryError e) {
-            handleOOMError("generateSync");
-        }
-        return null;
-    }
-
-    /**
-     * 将位图保存到文件
-     *
-     * @param context    上下文对象
-     * @param bitmap     位图，可能为空
-     * @param outputFile 输出文件
-     * @param quality    压缩质量
-     * @return 是否保存成功
-     */
-    public static boolean saveToFile(@NonNull Context context, @Nullable Bitmap bitmap, @NonNull File outputFile, int quality) {
-        if (bitmap == null || bitmap.isRecycled()) {
-            Log.w(TAG, "Invalid bitmap");
-            return false;
-        }
-
-        if (requireStoragePermission(outputFile) && !checkStoragePermission(context)) {
-            Log.e(TAG, "Storage permission denied");
-            return false;
-        }
-
-        File parent = outputFile.getParentFile();
-        if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            Log.e(TAG, "Failed to create directories: " + parent);
-            return false;
-        }
-
-        try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-            Bitmap.CompressFormat format = guessImageFormat(outputFile.getName());
-            if (!bitmap.compress(format, quality, fos)) {
-                Log.e(TAG, "Bitmap compression failed");
-                return false;
-            }
-            fos.flush();
-            return true;
-        } catch (IOException e) {
-            Log.e(TAG, "File save failed: " + e.getMessage());
-        } catch (SecurityException e) {
-            Log.e(TAG, "Security exception: " + e.getMessage());
-        }
-        return false;
-    }
-
-    /**
-     * 验证条码内容是否有效
-     *
-     * @param content 条码内容，可能为空
-     * @return 是否有效
-     */
-    private static boolean validateContent(@Nullable String content) {
-        if (content == null || content.trim().isEmpty()) {
-            Log.w(TAG, "Content cannot be empty");
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * 验证条码尺寸是否有效
-     *
-     * @param size 条码尺寸
-     * @return 是否有效
-     */
-    private static boolean validateSize(int size) {
-        if (size <= 0 || size > MAX_SIZE) {
-            Log.w(TAG, "Invalid size: " + size + ", valid range: [1, " + MAX_SIZE + "]");
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * 合并配置
-     *
-     * @param input 输入配置，可能为空
-     * @return 合并后的配置
-     */
-    @NonNull
-    private static Config mergeConfig(@Nullable Config input) {
-        Config config = new Config();
-        if (input == null) return config;
-
-        config.fgColor = input.fgColor;
-        config.bgColor = input.bgColor;
-        config.margin = input.margin > 0 ? input.margin : DEFAULT_MARGIN;
-        config.errorCorrection = input.errorCorrection != null ? input.errorCorrection : DEFAULT_ERROR_CORRECTION;
-        config.logo = input.logo != null && !input.logo.isRecycled() ? input.logo : null;
-        config.logoSizeRatio = clamp(input.logoSizeRatio, 0.1f, 0.3f);
-        config.logoBorder = input.logoBorder;
-        config.logoBorderColor = input.logoBorderColor;
-        config.barcodeFormat = input.barcodeFormat != null ? input.barcodeFormat : BarcodeFormat.QR_CODE;
-        return config;
-    }
-
-    /**
-     * 限制值在指定范围内
-     *
-     * @param value 要限制的值
+     * @param value 输入值
      * @param min   最小值
      * @param max   最大值
      * @return 限制后的值
@@ -345,158 +332,322 @@ public class ZxingUtils {
     }
 
     /**
-     * 准备编码提示信息
+     * 异步生成条码
      *
-     * @param config 配置对象
-     * @return 编码提示信息
+     * @param content  编码内容
+     * @param size     图片尺寸（宽高相等）
+     * @param config   生成配置
+     * @param callback 生成结果回调
      */
-    @NonNull
-    private static Map<EncodeHintType, Object> prepareHints(@NonNull Config config) {
-        Map<EncodeHintType, Object> hints = new HashMap<>();
-        hints.put(EncodeHintType.CHARACTER_SET, DEFAULT_CHARSET);
-        hints.put(EncodeHintType.MARGIN, config.margin);
-
-        if (config.barcodeFormat == BarcodeFormat.QR_CODE) {
-            hints.put(EncodeHintType.ERROR_CORRECTION, config.errorCorrection);
-        }
-        return Collections.unmodifiableMap(hints);
+    public static void generateAsync(@NonNull String content, int size, @Nullable Config config, @NonNull Callback callback) {
+        EXECUTOR.execute(() -> {
+            Bitmap bitmap = generateSync(content, size, config);
+            if (bitmap != null) postSuccess(callback, bitmap);
+            else postFailure(callback, "QR/Barcode generation failed");
+        });
     }
 
     /**
-     * 将 BitMatrix 渲染为位图
+     * 同步生成条码
      *
-     * @param matrix BitMatrix 对象
-     * @param config 配置对象
-     * @return 生成的位图，可能为空
+     * @param content 编码内容
+     * @param size    图片尺寸（宽高相等）
+     * @param config  生成配置
+     * @return 生成的位图，失败返回null
      */
     @Nullable
-    private static Bitmap renderToBitmap(@NonNull BitMatrix matrix, @NonNull Config config) {
+    public static Bitmap generateSync(@Nullable String content, int size, @Nullable Config config) {
+        if (!validateContent(content) || !validateSize(size)) return null;
         try {
-            int width = matrix.getWidth();
-            int height = matrix.getHeight();
-            int[] pixels = new int[width * height];
+            Config cfg = mergeConfig(config);
+            Map<EncodeHintType, Object> hints = prepareHints(cfg);
+            MultiFormatWriter writer = new MultiFormatWriter();
+            BitMatrix matrix = writer.encode(content, cfg.barcodeFormat, size, size, hints);
 
-            for (int y = 0; y < height; y++) {
-                int offset = y * width;
-                for (int x = 0; x < width; x++) {
-                    pixels[offset + x] = matrix.get(x, y) ? config.fgColor : config.bgColor;
-                }
-            }
+            BarcodeEncoder encoder = new BarcodeEncoder();
+            Bitmap base = encoder.createBitmap(matrix);
+            base = applyColor(base, cfg);
+            base = addLogo(base, cfg);
+            base = addWatermark(base, cfg);
 
-            return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888);
+            return base;
+        } catch (WriterException e) {
+            Log.e(TAG, "WriterException: " + e.getMessage());
         } catch (OutOfMemoryError e) {
-            handleOOMError("renderToBitmap");
-        } catch (IllegalArgumentException e) {
-            Log.e(TAG, "Invalid bitmap parameters: " + e.getMessage());
+            handleOOMError("generateSync");
         }
         return null;
     }
 
     /**
-     * 为二维码添加 logo
+     * 验证内容有效性
      *
-     * @param qrBitmap 二维码位图
-     * @param config   配置对象
-     * @return 添加 logo 后的位图，可能未改变
+     * @param c 编码内容
+     * @return 内容有效返回true
      */
-    @Nullable
-    private static Bitmap addLogo(@NonNull Bitmap qrBitmap, @NonNull Config config) {
-        if (config.logo == null || config.logo.isRecycled()) return qrBitmap;
-
-        try {
-            Canvas canvas = new Canvas(qrBitmap);
-            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-            int qrSize = qrBitmap.getWidth();
-            int logoSize = (int) (qrSize * config.logoSizeRatio);
-            Bitmap scaledLogo = Bitmap.createScaledBitmap(config.logo, logoSize, logoSize, true);
-
-            if (config.logoBorder) {
-                drawLogoBorder(canvas, qrSize, logoSize, config.logoBorderColor, paint);
-            }
-
-            RectF destRect = new RectF((qrSize - logoSize) / 2f, (qrSize - logoSize) / 2f, (qrSize + logoSize) / 2f, (qrSize + logoSize) / 2f);
-            canvas.drawBitmap(scaledLogo, null, destRect, paint);
-            return qrBitmap;
-        } catch (Exception e) {
-            Log.e(TAG, "Logo addition failed: " + e.getMessage());
-            return qrBitmap;
-        }
+    private static boolean validateContent(@Nullable String c) {
+        return c != null && !c.trim().isEmpty();
     }
 
     /**
-     * 绘制 logo 边框
+     * 验证尺寸有效性
      *
-     * @param canvas      画布对象
-     * @param qrSize      二维码尺寸
-     * @param logoSize    logo 尺寸
-     * @param borderColor 边框颜色
-     * @param paint       画笔对象
+     * @param size 图片尺寸
+     * @return 尺寸有效返回true
      */
-    private static void drawLogoBorder(Canvas canvas, int qrSize, int logoSize, int borderColor, Paint paint) {
-        paint.setColor(borderColor);
-        float borderWidth = logoSize * 0.1f;
-        float radius = logoSize / 2f + borderWidth;
-        canvas.drawCircle(qrSize / 2f, qrSize / 2f, radius, paint);
+    private static boolean validateSize(int size) {
+        return size > 0 && size <= MAX_SIZE;
     }
 
     /**
-     * 判断是否需要存储权限
+     * 合并配置参数
      *
-     * @param outputFile 输出文件
-     * @return 是否需要权限
-     */
-    private static boolean requireStoragePermission(File outputFile) {
-        return isExternalStoragePath(outputFile.getAbsolutePath());
-    }
-
-    /**
-     * 判断路径是否为外部存储路径
-     *
-     * @param path 路径
-     * @return 是否为外部存储路径
-     */
-    private static boolean isExternalStoragePath(String path) {
-        return path.startsWith("/storage/") || path.startsWith(Environment.getExternalStorageDirectory().getAbsolutePath());
-    }
-
-    /**
-     * 检查存储权限
-     *
-     * @param context 上下文对象
-     * @return 是否有存储权限
-     */
-    private static boolean checkStoragePermission(@NonNull Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return Environment.isExternalStorageManager() || hasPermission(context, Manifest.permission.MANAGE_EXTERNAL_STORAGE);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            return hasPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) && hasPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        } else {
-            return hasPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        }
-    }
-
-    /**
-     * 检查是否有指定权限
-     *
-     * @param context    上下文对象
-     * @param permission 权限名称
-     * @return 是否有该权限
-     */
-    private static boolean hasPermission(Context context, String permission) {
-        return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED;
-    }
-
-    /**
-     * 猜测图片格式
-     *
-     * @param fileName 文件名
-     * @return 图片压缩格式
+     * @param input 输入配置
+     * @return 合并后的配置（不会为null）
      */
     @NonNull
-    private static Bitmap.CompressFormat guessImageFormat(@NonNull String fileName) {
-        String ext = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase() : "";
+    private static Config mergeConfig(@Nullable Config input) {
+        if (input == null) return new Config();
+        Config cfg = new Config();
+        cfg.fgColor = input.fgColor;
+        cfg.bgColor = input.bgColor;
+        cfg.margin = input.margin > 0 ? input.margin : DEFAULT_MARGIN;
+        cfg.errorCorrection = input.errorCorrection != null ? input.errorCorrection : DEFAULT_ERROR_CORRECTION;
+        cfg.logo = input.logo != null && !input.logo.isRecycled() ? input.logo : null;
+        cfg.logoSizeRatio = clamp(input.logoSizeRatio, 0.1f, 0.3f);
+        cfg.logoBorder = input.logoBorder;
+        cfg.logoBorderColor = input.logoBorderColor;
+        cfg.barcodeFormat = input.barcodeFormat != null ? input.barcodeFormat : BarcodeFormat.QR_CODE;
+        cfg.logoRound = input.logoRound;
+        cfg.fgGradient = input.fgGradient;
+        cfg.gradientStartColor = input.gradientStartColor;
+        cfg.gradientEndColor = input.gradientEndColor;
+        cfg.watermarkText = input.watermarkText;
+        cfg.watermarkColor = input.watermarkColor;
+        cfg.watermarkSize = input.watermarkSize;
+        cfg.watermarkX = input.watermarkX;
+        cfg.watermarkY = input.watermarkY;
+        return cfg;
+    }
 
+    /**
+     * 准备编码参数
+     *
+     * @param cfg 生成配置
+     * @return 编码参数映射
+     */
+    @NonNull
+    private static Map<EncodeHintType, Object> prepareHints(@NonNull Config cfg) {
+        Map<EncodeHintType, Object> hints = new HashMap<>();
+        hints.put(EncodeHintType.CHARACTER_SET, DEFAULT_CHARSET);
+        hints.put(EncodeHintType.MARGIN, cfg.margin);
+        if (cfg.barcodeFormat == BarcodeFormat.QR_CODE)
+            hints.put(EncodeHintType.ERROR_CORRECTION, cfg.errorCorrection);
+        return hints;
+    }
+
+    /**
+     * 应用颜色配置
+     *
+     * @param bmp 原始位图
+     * @param cfg 生成配置
+     * @return 应用颜色后的位图
+     */
+    private static Bitmap applyColor(@NonNull Bitmap bmp, @NonNull Config cfg) {
+        int w = bmp.getWidth(), h = bmp.getHeight();
+        Bitmap out = bmp.copy(Bitmap.Config.ARGB_8888, true);
+        int[] pixels = new int[w * h];
+        out.getPixels(pixels, 0, w, 0, 0, w, h);
+        for (int i = 0; i < pixels.length; i++) {
+            if (pixels[i] == Color.BLACK) {
+                if (cfg.fgGradient) {
+                    int y = i / w;
+                    float ratio = (float) y / h;
+                    pixels[i] = blend(cfg.gradientStartColor, cfg.gradientEndColor, ratio);
+                } else {
+                    pixels[i] = cfg.fgColor;
+                }
+            } else {
+                pixels[i] = cfg.bgColor;
+            }
+        }
+        out.setPixels(pixels, 0, w, 0, 0, w, h);
+        return out;
+    }
+
+    /**
+     * 颜色混合计算
+     *
+     * @param start 起始颜色
+     * @param end   结束颜色
+     * @param ratio 混合比例
+     * @return 混合后的颜色
+     */
+    private static int blend(int start, int end, float ratio) {
+        int r = (int) (Color.red(start) * (1 - ratio) + Color.red(end) * ratio);
+        int g = (int) (Color.green(start) * (1 - ratio) + Color.green(end) * ratio);
+        int b = (int) (Color.blue(start) * (1 - ratio) + Color.blue(end) * ratio);
+        return Color.rgb(r, g, b);
+    }
+
+    /**
+     * 添加Logo到条码
+     *
+     * @param bmp 条码位图
+     * @param cfg 生成配置
+     * @return 添加Logo后的位图
+     */
+    private static Bitmap addLogo(@NonNull Bitmap bmp, @NonNull Config cfg) {
+        if (cfg.logo == null || cfg.logo.isRecycled()) return bmp;
+        try {
+            Canvas canvas = new Canvas(bmp);
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            int size = bmp.getWidth();
+            int logoSize = (int) (size * cfg.logoSizeRatio);
+            Bitmap logo = Bitmap.createScaledBitmap(cfg.logo, logoSize, logoSize, true);
+            if (cfg.logoRound) logo = getRoundBitmap(logo);
+            if (cfg.logoBorder) drawLogoBorder(canvas, size, logoSize, cfg.logoBorderColor, paint);
+            RectF rect = new RectF((size - logoSize) / 2f, (size - logoSize) / 2f, (size + logoSize) / 2f, (size + logoSize) / 2f);
+            canvas.drawBitmap(logo, null, rect, paint);
+            return bmp;
+        } catch (Exception e) {
+            Log.e(TAG, "Logo failed: " + e.getMessage());
+            return bmp;
+        }
+    }
+
+    /**
+     * 将位图转换为圆形
+     *
+     * @param bmp 原始位图
+     * @return 圆形位图
+     */
+    private static Bitmap getRoundBitmap(Bitmap bmp) {
+        Bitmap output = Bitmap.createBitmap(bmp.getWidth(), bmp.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(output);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        Rect r = new Rect(0, 0, bmp.getWidth(), bmp.getHeight());
+        RectF rf = new RectF(r);
+        c.drawARGB(0, 0, 0, 0);
+        c.drawRoundRect(rf, bmp.getWidth() / 2f, bmp.getHeight() / 2f, p);
+        p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+        c.drawBitmap(bmp, r, r, p);
+        return output;
+    }
+
+    /**
+     * 绘制Logo边框
+     *
+     * @param c        画布
+     * @param qrSize   二维码尺寸
+     * @param logoSize Logo尺寸
+     * @param color    边框颜色
+     * @param p        画笔
+     */
+    private static void drawLogoBorder(Canvas c, int qrSize, int logoSize, int color, Paint p) {
+        p.setColor(color);
+        float borderWidth = logoSize * 0.1f;
+        float radius = logoSize / 2f + borderWidth;
+        c.drawCircle(qrSize / 2f, qrSize / 2f, radius, p);
+    }
+
+    /**
+     * 添加水印到条码
+     *
+     * @param bmp 条码位图
+     * @param cfg 生成配置
+     * @return 添加水印后的位图
+     */
+    private static Bitmap addWatermark(@NonNull Bitmap bmp, @NonNull Config cfg) {
+        if (cfg.watermarkText == null || cfg.watermarkText.isEmpty()) return bmp;
+        Canvas canvas = new Canvas(bmp);
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(cfg.watermarkColor);
+        paint.setTextSize(cfg.watermarkSize);
+        paint.setTextAlign(Paint.Align.CENTER);
+        float x = bmp.getWidth() * cfg.watermarkX;
+        float y = bmp.getHeight() * cfg.watermarkY;
+        canvas.drawText(cfg.watermarkText, x, y, paint);
+        return bmp;
+    }
+
+    /**
+     * 保存位图到文件
+     *
+     * @param context 上下文
+     * @param bmp     要保存的位图
+     * @param out     输出文件
+     * @param quality 图片质量（0-100）
+     * @return 保存成功返回true
+     */
+    public static boolean saveToFile(@NonNull Context context, @Nullable Bitmap bmp, @NonNull File out, int quality) {
+        if (bmp == null || bmp.isRecycled()) {
+            Log.w(TAG, "Invalid bitmap");
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= 29)
+            return saveToMediaStore(context, bmp, out.getName(), quality);
+        if (requireStoragePermission(out) && !checkStoragePermission(context)) {
+            Log.e(TAG, "No permission");
+            return false;
+        }
+        File parent = out.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            Log.e(TAG, "Create dirs failed");
+            return false;
+        }
+        try (FileOutputStream fos = new FileOutputStream(out)) {
+            Bitmap.CompressFormat fmt = guessFormat(out.getName());
+            if (!bmp.compress(fmt, quality, fos)) {
+                Log.e(TAG, "Compress failed");
+                return false;
+            }
+            fos.flush();
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Save failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 通过MediaStore保存位图（Android 10+）
+     *
+     * @param ctx     上下文
+     * @param bmp     要保存的位图
+     * @param name    文件名
+     * @param quality 图片质量
+     * @return 保存成功返回true
+     */
+    private static boolean saveToMediaStore(@NonNull Context ctx, @NonNull Bitmap bmp, @NonNull String name, int quality) {
+        try {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+            values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/ZxingUtils");
+            if (ctx.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) == null)
+                return false;
+            OutputStream os = ctx.getContentResolver().openOutputStream(ctx.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values));
+            if (os != null) {
+                bmp.compress(Bitmap.CompressFormat.PNG, quality, os);
+                os.flush();
+                os.close();
+                return true;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "MediaStore failed: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * 根据文件名猜测图片格式
+     *
+     * @param name 文件名
+     * @return 图片压缩格式
+     */
+    private static Bitmap.CompressFormat guessFormat(@NonNull String name) {
+        String ext = name.contains(".") ? name.substring(name.lastIndexOf(".") + 1).toLowerCase() : "";
         switch (ext) {
             case "jpg":
             case "jpeg":
@@ -509,97 +660,86 @@ public class ZxingUtils {
     }
 
     /**
+     * 判断是否需要存储权限
+     *
+     * @param out 输出文件
+     * @return 需要权限返回true
+     */
+    private static boolean requireStoragePermission(File out) {
+        return out.getAbsolutePath().startsWith("/storage/") || out.getAbsolutePath().startsWith(Environment.getExternalStorageDirectory().getAbsolutePath());
+    }
+
+    /**
+     * 检查存储权限
+     *
+     * @param ctx 上下文
+     * @return 有权限返回true
+     */
+    private static boolean checkStoragePermission(@NonNull Context ctx) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+            return Environment.isExternalStorageManager() || hasPermission(ctx, Manifest.permission.MANAGE_EXTERNAL_STORAGE);
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            return hasPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) && hasPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        else return hasPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+    }
+
+    /**
+     * 检查是否有特定权限
+     *
+     * @param ctx  上下文
+     * @param perm 权限名
+     * @return 有权限返回true
+     */
+    private static boolean hasPermission(Context ctx, String perm) {
+        return ContextCompat.checkSelfPermission(ctx, perm) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * 生成Base64编码的条码图片
+     *
+     * @param content 编码内容
+     * @param size    图片尺寸
+     * @param cfg     生成配置
+     * @return Base64编码字符串，失败返回null
+     */
+    @Nullable
+    public static String generateBase64(@NonNull String content, int size, @Nullable Config cfg) {
+        Bitmap bmp = generateSync(content, size, cfg);
+        if (bmp == null) return null;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        bmp.compress(Bitmap.CompressFormat.PNG, 100, baos);
+        return Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+    }
+
+    /**
      * 处理内存溢出错误
      *
-     * @param methodName 发生错误的方法名
+     * @param method 方法名
      */
-    private static void handleOOMError(String methodName) {
-        Log.e(TAG, "OOM in " + methodName + ", suggest reducing image size");
+    private static void handleOOMError(String method) {
+        Log.e(TAG, "OOM in " + method + ", consider reducing size");
         System.gc();
     }
 
     /**
-     * 安全异步任务类
+     * 在主线程投递成功结果
+     *
+     * @param cb  回调接口
+     * @param bmp 生成的位图
      */
-    private static class SafeAsyncTask extends AsyncTask<Void, Void, Bitmap> {
-        // 回调弱引用
-        private final WeakReference<Callback> callbackRef;
-        // 条码内容
-        private final String content;
-        // 条码尺寸
-        private final int size;
-        // 配置对象
-        private final Config config;
-        // 错误信息
-        private String errorMsg;
+    private static void postSuccess(@NonNull Callback cb, @Nullable Bitmap bmp) {
+        if (Thread.currentThread() == Looper.getMainLooper().getThread()) cb.onSuccess(bmp);
+        else new android.os.Handler(Looper.getMainLooper()).post(() -> cb.onSuccess(bmp));
+    }
 
-        /**
-         * 构造函数
-         *
-         * @param content  条码内容
-         * @param size     条码尺寸
-         * @param config   配置对象，可能为空
-         * @param callback 回调对象
-         */
-        SafeAsyncTask(@NonNull String content, int size, @Nullable Config config, @NonNull Callback callback) {
-            this.content = content;
-            this.size = Math.min(size, MAX_SIZE);
-            this.config = config != null ? config : new Config();
-            this.callbackRef = new WeakReference<>(callback);
-        }
-
-        @Override
-        protected Bitmap doInBackground(Void... voids) {
-            return generateSync(content, size, config);
-        }
-
-        @Override
-        protected void onPostExecute(@Nullable Bitmap result) {
-            Callback callback = callbackRef.get();
-            if (callback == null) return;
-
-            if (result != null) {
-                postSuccess(callback, result);
-            } else {
-                postFailure(callback, errorMsg != null ? errorMsg : "Generation failed");
-            }
-        }
-
-        /**
-         * 发布成功结果
-         *
-         * @param callback 回调对象
-         * @param bitmap   生成的位图，可能为空
-         */
-        private void postSuccess(@NonNull Callback callback, @Nullable Bitmap bitmap) {
-            if (isMainThread()) {
-                callback.onSuccess(bitmap);
-            } else {
-                MAIN_HANDLER.post(() -> callback.onSuccess(bitmap));
-            }
-        }
-
-        /**
-         * 发布失败结果
-         *
-         * @param callback 回调对象
-         * @param msg      错误信息
-         */
-        private void postFailure(@NonNull Callback callback, @NonNull String msg) {
-            if (isMainThread()) {
-                callback.onFailure(msg);
-            } else {
-                MAIN_HANDLER.post(() -> callback.onFailure(msg));
-            }
-        }
-
-        /**
-         * 判断是否为主线程
-         *
-         * @return 是否为主线程
-         */
-        private boolean isMainThread() {
-            return Looper.myLooper() == Looper.getMainLooper();
-        }
+    /**
+     * 在主线程投递失败结果
+     *
+     * @param cb  回调接口
+     * @param msg 错误信息
+     */
+    private static void postFailure(@NonNull Callback cb, @NonNull String msg) {
+        if (Thread.currentThread() == Looper.getMainLooper().getThread()) cb.onFailure(msg);
+        else new android.os.Handler(Looper.getMainLooper()).post(() -> cb.onFailure(msg));
     }
 }

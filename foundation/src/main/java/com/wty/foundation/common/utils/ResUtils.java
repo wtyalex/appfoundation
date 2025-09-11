@@ -17,7 +17,11 @@ import androidx.core.content.ContextCompat;
 
 import com.wty.foundation.common.init.AppContext;
 
-
+/**
+ * Author: 吴天宇
+ * Date: 2024/8/21 10:31
+ * Description: 资源工具类，提供字符串、颜色、Drawable、尺寸及数组等资源的获取功能
+ */
 public class ResUtils {
     private static final String TAG = "ResUtils";
 

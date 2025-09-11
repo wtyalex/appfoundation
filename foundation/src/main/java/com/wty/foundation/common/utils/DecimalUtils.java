@@ -13,6 +13,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 
+/**
+ * Author: 吴天宇
+ * Date: 2024/8/28 16:56
+ * Description: 数值工具类，提供BigDecimal转换、数字格式化（货币/百分比/科学计数法）、数值计算及序列生成等功能
+ */
 public class DecimalUtils {
 
     private static final String TAG = "DecimalUtils";

@@ -12,6 +12,11 @@ import com.wty.foundation.common.init.AppContext;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+/**
+ * Author: 吴天宇
+ * Date: 2024/8/27 15:31
+ * Description: 屏幕工具类，提供屏幕尺寸、密度、方向等信息及单位转换功能
+ */
 public class ScreenUtils {
 
     // 私有构造函数防止外部实例化

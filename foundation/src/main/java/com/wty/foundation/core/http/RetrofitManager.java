@@ -40,14 +40,14 @@ public class RetrofitManager {
             throw new IllegalArgumentException("Config is null");
         }
         mRetrofit = new Retrofit.Builder()
-            // 添加自动gson解析
-            .addConverterFactory(GsonConverterFactory.create())
-            // 让Retrofit支持RxJava2
-            .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
-            // 设置公共的url
-            .baseUrl(config.getBaseUrl())
-            // 配置自己的okhttpClinet
-            .client(buildOkhttpClient(config)).build();
+                // 添加自动gson解析
+                .addConverterFactory(GsonConverterFactory.create())
+                // 让Retrofit支持RxJava2
+                .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
+                // 设置公共的url
+                .baseUrl(config.getBaseUrl())
+                // 配置自己的okhttpClinet
+                .client(buildOkhttpClient(config)).build();
     }
 
     private RetrofitManager() {
@@ -55,12 +55,8 @@ public class RetrofitManager {
     }
 
     private OkHttpClient buildOkhttpClient(Config config) {
-
         // 构造一个OkHttpClient对应
-        OkHttpClient.Builder builder =
-            new OkHttpClient.Builder().connectTimeout(config.getConnectTimeoutMs(), TimeUnit.MILLISECONDS)
-                .readTimeout(config.getReadTimeoutTimeoutMs(), TimeUnit.MILLISECONDS)
-                .writeTimeout(config.getWriteTimeoutTimeoutMs(), TimeUnit.MILLISECONDS);
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().connectTimeout(config.getConnectTimeoutMs(), TimeUnit.MILLISECONDS).readTimeout(config.getReadTimeoutTimeoutMs(), TimeUnit.MILLISECONDS).writeTimeout(config.getWriteTimeoutTimeoutMs(), TimeUnit.MILLISECONDS);
         if (config.getBaseUrl().startsWith("https://")) {
             X509TrustManager trustManager = new X509TrustManager() {
                 @Override
@@ -75,12 +71,12 @@ public class RetrofitManager {
 
                 @Override
                 public X509Certificate[] getAcceptedIssuers() {
-                    return new X509Certificate[] {};
+                    return new X509Certificate[]{};
                 }
             };
             try {
                 SSLContext sslContext = SSLContext.getInstance("SSL");
-                sslContext.init(null, new TrustManager[] {trustManager}, new SecureRandom());
+                sslContext.init(null, new TrustManager[]{trustManager}, new SecureRandom());
                 SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
                 builder.sslSocketFactory(sslSocketFactory, trustManager);
             } catch (NoSuchAlgorithmException e) {
