@@ -6,8 +6,9 @@ import java.util.List;
 import okhttp3.Interceptor;
 
 /**
- * @author 创建人： wutianyu
- * @createTime 创建时间： 2023/1/16
+ * @author wutianyu
+ * @createTime 2024/5/27 14:09
+ * @describe
  */
 public class Config {
     private String mBaseUrl;
