@@ -4,8 +4,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * @author 创建人： wutianyu
- * @createTime 创建时间： 2023/1/16
+ * @author wutianyu
+ * @createTime 2023/1/16
+ * @describe
  */
 public class Page<T> {
     private List<T> rows;

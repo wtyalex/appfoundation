@@ -602,13 +602,8 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
             return;
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            saveCrashLogToPrivateDir(fileName, content);
-            cleanOldLogsInPrivateDir();
-        } else {
-            saveCrashLogToPrivateDir(fileName, content);
-            cleanOldLogsInPrivateDir();
-        }
+        saveCrashLogToPrivateDir(fileName, content);
+        cleanOldLogsInPrivateDir();
     }
 
     private void saveCrashLogToPrivateDir(String fileName, String content) {
