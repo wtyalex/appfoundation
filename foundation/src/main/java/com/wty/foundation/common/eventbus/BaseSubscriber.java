@@ -5,6 +5,11 @@ import java.util.Set;
 
 import org.greenrobot.eventbus.ThreadMode;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/8/24
+ * @describe EventBus事件订阅者基类，提供订阅者的基本功能和抽象方法
+ */
 abstract class BaseSubscriber implements ISubscriber, Comparable<BaseSubscriber> {
     protected final Set<String> mActions = new HashSet<>();
     private MessageCallback mMessageCallback;

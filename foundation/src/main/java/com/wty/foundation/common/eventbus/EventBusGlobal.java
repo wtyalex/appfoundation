@@ -2,6 +2,11 @@ package com.wty.foundation.common.eventbus;
 
 import org.greenrobot.eventbus.EventBus;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/8/24
+ * @describe EventBus全局管理工具类，提供事件发布和订阅者创建功能
+ */
 public class EventBusGlobal {
     private EventBusGlobal() {}
 

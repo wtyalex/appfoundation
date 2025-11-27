@@ -13,6 +13,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * @author wutianyu
+ * @createTime 2025/3/28
+ * @describe 地图工具类，提供地理坐标点生成、距离计算和方位角计算等功能
+ */
 public class MapUtils {
     // 日志标签
     private static final String TAG = "MapUtils";

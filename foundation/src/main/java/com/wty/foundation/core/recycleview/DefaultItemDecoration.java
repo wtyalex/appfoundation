@@ -6,6 +6,11 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+/**
+ * @author wutianyu
+ * @createTime 2023/2/21 11:12
+ * @describe RecyclerView默认Item装饰类，用于设置列表项间距
+ */
 public class DefaultItemDecoration extends RecyclerView.ItemDecoration {
     private int spacing;
     private int startSpacing;

@@ -12,6 +12,11 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.viewbinding.ViewBinding;
 
+/**
+ * @author wutianyu
+ * @createTime 2023/6/6 10:54
+ * @describe ViewBinding工具类，提供通过反射创建ViewBinding实例的功能
+ */
 public class ViewBindingUtils {
 
     public static <Binding extends ViewBinding> Binding create(Class<?> clazz, LayoutInflater inflater) {

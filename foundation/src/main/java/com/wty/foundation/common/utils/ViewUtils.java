@@ -13,6 +13,11 @@ import androidx.annotation.IdRes;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/9/3
+ * @describe 视图工具类，提供视图查找、设置和操作等功能
+ */
 public class ViewUtils {
     private static final String TAG = "ViewUtils";
 

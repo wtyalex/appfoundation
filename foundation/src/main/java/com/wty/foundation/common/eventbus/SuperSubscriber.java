@@ -14,6 +14,11 @@ import com.wty.foundation.common.utils.ArrayUtils;
 
 import android.util.Log;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/8/24
+ * @describe EventBus超级订阅者，负责分发和管理各类事件消息
+ */
 final class SuperSubscriber {
     private static final String TAG = "EventBus";
     private final Map<String, List<BaseSubscriber>> mSubMap = new ConcurrentHashMap<>();

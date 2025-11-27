@@ -11,7 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 /**
  * @author wutianyu
  * @createTime 2023/2/21 10:12
- * @describe
+ * @describe 网格布局RecyclerView的Item装饰类，用于设置item间距
  */
 public class GridItemDecoration extends RecyclerView.ItemDecoration {
     private int verticalSpace = 0;

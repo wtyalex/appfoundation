@@ -8,7 +8,7 @@ import androidx.viewbinding.ViewBinding;
 /**
  * @author wutianyu
  * @createTime 2023/1/31 9:23
- * @describe
+ * @describe RecyclerView的ViewHolder基类，负责数据绑定和点击事件处理
  */
 public abstract class BaseViewHolder<VB extends ViewBinding, D> extends RecyclerView.ViewHolder {
     protected @NonNull final VB mVB;

@@ -5,13 +5,13 @@ import androidx.fragment.app.Fragment;
 /**
  * @author wutianyu
  * @createTime 2023/2/15 16:57
- * @describe
+ * @describe 可见性感知Fragment基类，支持监听Fragment显示/隐藏状态变化
  */
 public class VisibilityFragment extends Fragment implements IFragmentVisibility {
-    // True if the fragment is visible to the user.
+    // 如果Fragment对用户可见，则为True
     private boolean mIsFragmentVisible = false;
 
-    // True if the fragment is visible to the user for the first time.
+    // 如果Fragment第一次对用户可见，则为True
     private boolean mIsFragmentVisibleFirst = true;
 
     public VisibilityFragment() {}
@@ -69,8 +69,8 @@ public class VisibilityFragment extends Fragment implements IFragmentVisibility 
     private void determineFragmentVisible() {
         Fragment parent = getParentFragment();
         if (parent != null && parent instanceof VisibilityFragment) {
-            if (!((VisibilityFragment)parent).isVisibleToUser()) {
-                // Parent Fragment is invisible, child fragment must be invisible.
+            if (!((VisibilityFragment) parent).isVisibleToUser()) {
+                // 父Fragment不可见，子Fragment必须不可见
                 return;
             }
         }
@@ -99,7 +99,7 @@ public class VisibilityFragment extends Fragment implements IFragmentVisibility 
     private void determineChildFragmentVisible() {
         for (Fragment fragment : getChildFragmentManager().getFragments()) {
             if (fragment instanceof VisibilityFragment) {
-                ((VisibilityFragment)fragment).determineChildFragmentVisible();
+                ((VisibilityFragment) fragment).determineChildFragmentVisible();
             }
         }
 
@@ -108,7 +108,7 @@ public class VisibilityFragment extends Fragment implements IFragmentVisibility 
     private void determineChildFragmentInvisible() {
         for (Fragment fragment : getChildFragmentManager().getFragments()) {
             if (fragment instanceof VisibilityFragment) {
-                ((VisibilityFragment)fragment).determineChildFragmentInvisible();
+                ((VisibilityFragment) fragment).determineChildFragmentInvisible();
             }
         }
     }

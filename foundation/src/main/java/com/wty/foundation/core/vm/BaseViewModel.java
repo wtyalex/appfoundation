@@ -15,6 +15,11 @@ import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.SavedStateHandle;
 
+/**
+ * @author wutianyu
+ * @createTime 2023/2/21 15:12
+ * @describe 基础ViewModel类，提供加载对话框管理和数据仓库访问功能
+ */
 public abstract class BaseViewModel<Rep extends IRepository> extends AndroidViewModel {
     protected final Rep mRepository;
     private final SafeMutableLiveData<String> mLoadDialogState = new SafeMutableLiveData<>();

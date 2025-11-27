@@ -4,6 +4,11 @@ import android.os.SystemClock;
 
 import java.util.Date;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/10/23
+ * @describe 时间同步工具类，用于同步和获取设备时间与服务器时间的一致性
+ */
 public class TimeSync {
 
     private static long differ;

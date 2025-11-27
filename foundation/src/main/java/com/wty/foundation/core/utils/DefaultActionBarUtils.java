@@ -19,7 +19,7 @@ import androidx.annotation.Nullable;
 /**
  * @author wutianyu
  * @createTime 2023/6/6 8:54
- * @describe
+ * @describe 默认ActionBar工具类，提供统一的ActionBar布局和样式设置
  */
 public class DefaultActionBarUtils {
     private DefaultActionBarUtils() {}

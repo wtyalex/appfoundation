@@ -5,6 +5,11 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import android.util.Log;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/8/21
+ * @describe 异步事件订阅者，用于处理异步事件消息
+ */
 class AsyncSubscriber extends BaseSubscriber {
     private static final String TAG = "EventBus";
 

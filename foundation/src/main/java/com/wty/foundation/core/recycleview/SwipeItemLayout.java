@@ -18,6 +18,11 @@ import android.widget.Scroller;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+/**
+ * @author wutianyu
+ * @createTime 2023/2/21 14:12
+ * @describe 侧滑菜单布局，支持左右滑动显示隐藏菜单项
+ */
 public class SwipeItemLayout extends ViewGroup {
     enum Mode {
         RESET, DRAG, FLING, CLICK

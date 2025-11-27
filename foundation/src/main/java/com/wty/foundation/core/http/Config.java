@@ -8,7 +8,7 @@ import okhttp3.Interceptor;
 /**
  * @author wutianyu
  * @createTime 2024/5/27 14:09
- * @describe
+ * @describe 网络请求配置类，用于设置基础URL、超时时间和拦截器等参数
  */
 public class Config {
     private String mBaseUrl;

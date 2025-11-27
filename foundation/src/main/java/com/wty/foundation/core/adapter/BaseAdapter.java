@@ -18,7 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
  * @param <D> 实体数据类
  * @author wutianyu
  * @createTime 2023/1/31 9:23
- * @describe RecyclerView.Adapter 封装类
+ * @describe RecyclerView适配器基类，封装了数据操作和ViewHolder管理功能
  */
 public abstract class BaseAdapter<VH extends BaseViewHolder<?, D>, D> extends RecyclerView.Adapter<VH>
     implements OnClickListener<D> {

@@ -16,6 +16,9 @@ import android.view.ViewParent;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 
+/**
+ * 点击工具类，提供防重复点击、区域扩展和点击效果等功能
+ */
 public class ClickUtils {
     // 私有构造函数防止外部实例化
     private ClickUtils() {}

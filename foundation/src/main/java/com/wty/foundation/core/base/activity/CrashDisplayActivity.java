@@ -23,6 +23,11 @@ import com.wty.foundation.R;
 import com.wty.foundation.core.exception.AppCrashHandler;
 import com.wty.foundation.core.safe.OnSafeClickListener;
 
+/**
+ * @author wutianyu
+ * @createTime 2025/3/28
+ * @describe 崩溃信息展示页面，用于显示异常信息并提供重启或退出选项
+ */
 public class CrashDisplayActivity extends AppCompatActivity {
     private static final String TAG = "CrashDisplayActivity";
     private String mCrashLog;

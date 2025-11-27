@@ -48,6 +48,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @author wutianyu
+ * @createTime 2025/3/28
+ * @describe 应用崩溃处理器，负责捕获异常、生成报告和保存日志
+ */
 public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
     private static final String TAG = "AppCrashHandler";
     private static final int DEFAULT_MAX_LOG_FILES = 20;

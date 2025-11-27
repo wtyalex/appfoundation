@@ -10,7 +10,7 @@ import androidx.annotation.NonNull;
 /**
  * @author wutianyu
  * @createTime 2023/2/9 13:03
- * @describe
+ * @describe 日期选择器适配器，用于处理日期选择列表的显示和文本转换
  */
 public abstract class DatePickerAdapter extends BaseAdapter<DatePickerAdapter.InnerViewHolder, String> {
     @NonNull

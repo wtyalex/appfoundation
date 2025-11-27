@@ -1,5 +1,10 @@
 package com.wty.foundation.core.http;
 
+/**
+ * @author wutianyu
+ * @createTime 2023/1/16
+ * @describe 网络请求响应数据封装类，包含状态码、消息和返回数据
+ */
 public class Response<T> {
     /**
      * 返回码

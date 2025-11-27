@@ -11,7 +11,7 @@ import android.widget.TextView;
 /**
  * @author wutianyu
  * @createTime 2023/2/13 14:16
- * @describe
+ * @describe 文本输入监听器基类，支持文本过滤和变化监听
  */
 public class BaseTextWatcher implements TextWatcher {
     private String mOldText;

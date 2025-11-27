@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * @author wutianyu
  * @createTime 2023/1/16
- * @describe
+ * @describe 分页数据封装类，包含数据列表和总记录数
  */
 public class Page<T> {
     private List<T> rows;

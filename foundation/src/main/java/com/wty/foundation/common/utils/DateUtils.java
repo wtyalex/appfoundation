@@ -13,6 +13,9 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 日期工具类，提供日期格式化、解析、计算和转换等功能
+ */
 public class DateUtils {
     private static final String TAG = "DateUtils";
     private static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";

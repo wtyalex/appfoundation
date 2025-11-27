@@ -12,7 +12,7 @@ import android.util.Log;
 /**
  * @author wutianyu
  * @createTime 2023/6/7 14:55
- * @describe
+ * @describe 屏幕适配和字体缩放控制工具类
  */
 public class ResourceSetting {
     private static final String TAG = "ResourceSetting";
@@ -53,6 +53,36 @@ public class ResourceSetting {
     }
 
     /**
+     * 计算目标密度值
+     *
+     * @param screenWidthDp  屏幕宽度dp
+     * @param screenHeightDp 屏幕高度dp
+     * @param widthPixels    屏幕宽度像素
+     * @return 目标密度值
+     */
+    private static float calculateTargetDensity(int screenWidthDp, int screenHeightDp, int widthPixels) {
+        int swDp = Math.min(screenWidthDp, screenHeightDp);
+
+        int baseWidthDp;
+        if (swDp < 320) {
+            // 极小屏幕(手表等)
+            baseWidthDp = Math.max(240, swDp - 40);
+        } else if (swDp <= 420) {
+            // 小屏手机
+            baseWidthDp = swDp;
+        } else if (swDp <= 1080) {
+            // 中大屏设备
+            baseWidthDp = (int) (360 + (swDp - 420) * 0.6);
+        } else {
+            // 超大屏设备(电视、投影等)
+            baseWidthDp = (int) (720 + (swDp - 1080) * 0.4);
+        }
+
+        float targetDensity = (float) widthPixels / baseWidthDp;
+        return Math.max(0.5f, Math.min(targetDensity, 5.0f));
+    }
+
+    /**
      * 为Activity应用适配密度
      *
      * @param activity     目标Activity
@@ -65,20 +95,7 @@ public class ResourceSetting {
             DisplayMetrics dm = activity.getResources().getDisplayMetrics();
             Configuration config = activity.getResources().getConfiguration();
 
-            int swDp = Math.min(config.screenWidthDp, config.screenHeightDp);
-            int baseWidthDp;
-
-            if (swDp < 320) baseWidthDp = 280;      // 手表
-            else if (swDp < 360) baseWidthDp = 360; // 小屏手机
-            else if (swDp < 420) baseWidthDp = 375; // 普通手机
-            else if (swDp < 600) baseWidthDp = 414; // 大屏手机
-            else if (swDp < 720) baseWidthDp = 600; // 小平板
-            else if (swDp < 1080) baseWidthDp = 720; // 大平板/TV
-            else baseWidthDp = 1080;                 // 超大屏/8K TV
-
-            float targetDensity = (float) dm.widthPixels / baseWidthDp;
-            targetDensity = Math.max(0.8f, Math.min(targetDensity, 4.0f));
-
+            float targetDensity = calculateTargetDensity(config.screenWidthDp, config.screenHeightDp, dm.widthPixels);
             float targetScaledDensity = targetDensity * (sNonCompatScaledDensity / sNonCompatDensity);
             int targetDensityDpi = (int) (160 * targetDensity);
 

@@ -8,6 +8,11 @@ import android.os.Message;
 
 import androidx.annotation.NonNull;
 
+/**
+ * @author wutianyu
+ * @createTime 2023/1/15
+ * @describe 弱引用Handler，避免内存泄漏的消息处理机制
+ */
 public class WeakHandler extends Handler {
     private final WeakReference<HandleMessage> mHandle;
 

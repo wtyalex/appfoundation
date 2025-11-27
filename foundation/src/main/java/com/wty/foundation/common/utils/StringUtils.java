@@ -12,6 +12,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/9/3
+ * @describe 字符串工具类，提供字符串验证、处理和转换等功能
+ */
 public class StringUtils {
     private static final String TAG = "StringUtils";
 

@@ -5,6 +5,11 @@ import org.greenrobot.eventbus.ThreadMode;
 
 import android.util.Log;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/8/24
+ * @describe 后台线程事件订阅者，用于在后台线程处理事件消息
+ */
 class BackgroundSubscriber extends BaseSubscriber {
     private static final String TAG = "EventBus";
 

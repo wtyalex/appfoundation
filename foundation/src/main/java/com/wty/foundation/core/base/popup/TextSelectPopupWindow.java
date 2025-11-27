@@ -22,7 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 /**
  * @author wutianyu
  * @createTime 2023/2/8 14:01
- * @describe
+ * @describe 文本选择弹窗基类，支持自定义数据类型和文本显示
  */
 public abstract class TextSelectPopupWindow<D> extends PopupWindow {
     private final UiPopupTextSelectBinding mViewBinding;

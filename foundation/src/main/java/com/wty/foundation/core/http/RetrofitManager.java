@@ -19,9 +19,9 @@ import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
- * @author: wutianyu
- * @date: 2023/1/11
- * @describe Retrofit工具类
+ * @author wutianyu
+ * @createTime 2023/1/11
+ * @describe Retrofit管理器，提供网络请求接口的创建和配置管理功能
  */
 public class RetrofitManager {
     // 默认Retrofit实例

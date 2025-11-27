@@ -8,7 +8,7 @@ import android.view.View;
 /**
  * @author wutianyu
  * @createTime 2023/1/30 19:28
- * @describe
+ * @describe 加载提示对话框，用于显示加载状态和提示信息
  */
 public class LoadDialog extends BaseDialog<UiDialogLoadBinding> {
     private String mHintText;

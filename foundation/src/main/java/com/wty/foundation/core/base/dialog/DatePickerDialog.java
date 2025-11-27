@@ -20,7 +20,7 @@ import androidx.recyclerview.widget.RecyclerView;
 /**
  * @author wutianyu
  * @createTime 2023/2/9 11:30
- * @describe
+ * @describe 日期时间选择对话框，支持日期和时间两种模式选择
  */
 public class DatePickerDialog extends BaseDialog<UiDialogDatePickerBinding> {
     public static final int DATE_MODE = 1;

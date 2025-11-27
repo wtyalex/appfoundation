@@ -2,7 +2,8 @@ package com.wty.foundation.core.exception;
 
 /**
  * @author wutianyu
- * @sinc 2023/1/18 9:38
+ * @createTime 2023/1/18
+ * @describe 服务器异常类，用于封装服务器返回的错误码和错误信息
  */
 public class ServerException extends RuntimeException {
     private final int mCode;

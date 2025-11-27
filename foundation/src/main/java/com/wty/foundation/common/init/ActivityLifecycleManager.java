@@ -15,6 +15,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+/**
+ * @author wutianyu
+ * @createTime 2024/8/21
+ * @describe Activity生命周期管理器，负责跟踪应用中所有Activity的状态和生命周期
+ */
 public class ActivityLifecycleManager implements Application.ActivityLifecycleCallbacks {
     // 应用前台状态计数器：>0表示前台，=0表示后台
     private int mResumeCount;

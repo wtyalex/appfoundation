@@ -18,7 +18,11 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.wty.foundation.common.init.AppContext;
 
-
+/**
+ * @author wutianyu
+ * @createTime 2025/1/10
+ * @describe 状态栏工具类，提供沉浸式状态栏、状态栏颜色和图标颜色设置等功能
+ */
 public class StatusBarUtils {
 
     private static final String TAG = "StatusBarUtil";
