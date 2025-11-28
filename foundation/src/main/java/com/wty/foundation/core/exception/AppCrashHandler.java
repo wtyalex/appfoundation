@@ -514,7 +514,7 @@ public class AppCrashHandler implements Thread.UncaughtExceptionHandler {
 
     private String getBuildTimestamp(PackageInfo pInfo) {
         try {
-            return new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(new Date(pInfo.lastUpdateTime));
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date(pInfo.lastUpdateTime));
         } catch (Exception e) {
             return "Unavailable";
         }
